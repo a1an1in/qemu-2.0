@@ -66,33 +66,28 @@
         } while (0)
 
 /*
- *  Offsets for UART registers relative to SFR base address
- *  for UARTn
- *
- */
-#define ULCON      0x0000 /* Line Control             */
-#define UCON       0x0004 /* Control                  */
-#define UFCON      0x0008 /* FIFO Control             */
-#define UMCON      0x000C /* Modem Control            */
-#define UTRSTAT    0x0010 /* Tx/Rx Status             */
-#define UERSTAT    0x0014 /* UART Error Status        */
-#define UFSTAT     0x0018 /* FIFO Status              */
-#define UMSTAT     0x001C /* Modem Status             */
-#define UTXH       0x0020 /* Transmit Buffer          */
-#define URXH       0x0024 /* Receive Buffer           */
-#define UBRDIV     0x0028 /* Baud Rate Divisor        */
-#define UFRACVAL   0x002C /* Divisor Fractional Value */
-#define UINTP      0x0030 /* Interrupt Pending        */
-#define UINTSP     0x0034 /* Interrupt Source Pending */
-#define UINTM      0x0038 /* Interrupt Mask           */
+ *  Offsets for UART registers 
+*/
+#define US_CR       0x0000	  /* Control Register */ 
+#define US_MR       0x0004	  /* Mode Register*/
+#define US_IER      0x0008	  /* Interrupt Enable Register*/
+#define US_IDR      0x000C	  /* Interrupt Disable Register*/
+#define US_IMR      0x0010    /* Interrupt Mask Register*/
+#define US_CSR      0x0014    /* Channel Status Register*/
+#define US_RHR      0x0018    /* Receiver Holding Register*/ 
+#define US_THR      0x001C    /* TransmitterHolding Register*/
+#define US_BRGR     0x0020    /* Baud Rate Generator Register*/ 
+#define US_RTOR     0x0024    /* Receiver Time-out Register*/
+#define US_TTGR     0x0028    /* Transmitter Timeguard Register*/ 
+/*0x20 ~ 0x3c Reserved*/
+#define US_FIDI     0x0040    /* FI DI Ratio Register*/ 
+#define US_NER      0x0044    /* Number of Errors Register*/ 
+#define US_RESVD    0x0048    /* Reserved*/ 
+#define US_IF       0x004c    /* IrDA Filter Register*/ 
+/* 0x5c ~ 0xfc Reserved*/
+/* 0x100 ~ 0x128 Reserved for PDC Registers*/
 
-/*
- * for indexing register in the uint32_t array
- *
- * 'reg' - register offset (see offsets definitions above)
- *
- */
-#define I_(reg) (reg / sizeof(uint32_t))
+#define REG(reg) (reg / sizeof(uint32_t))
 
 typedef struct at91samUartReg {
     const char         *name; /* the only reason is the debug output */
@@ -100,379 +95,196 @@ typedef struct at91samUartReg {
     uint32_t            reset_value;
 } at91samUartReg;
 
+/*FIXME:just do normal uart function*/
 static at91samUartReg at91sam9260uart_regs[] = {
-    {"ULCON",    ULCON,    0x00000000},
-    {"UCON",     UCON,     0x00003000},
-    {"UFCON",    UFCON,    0x00000000},
-    {"UMCON",    UMCON,    0x00000000},
-    {"UTRSTAT",  UTRSTAT,  0x00000006}, /* RO */
-    {"UERSTAT",  UERSTAT,  0x00000000}, /* RO */
-    {"UFSTAT",   UFSTAT,   0x00000000}, /* RO */
-    {"UMSTAT",   UMSTAT,   0x00000000}, /* RO */
-    {"UTXH",     UTXH,     0x5c5c5c5c}, /* WO, undefined reset value*/
-    {"URXH",     URXH,     0x00000000}, /* RO */
-    {"UBRDIV",   UBRDIV,   0x00000000},
-    {"UFRACVAL", UFRACVAL, 0x00000000},
-    {"UINTP",    UINTP,    0x00000000},
-    {"UINTSP",   UINTSP,   0x00000000},
-    {"UINTM",    UINTM,    0x00000000},
+    {"US_CR",    US_CR,    0x00000000},
+    {"US_MR",    US_MR,     0x00000000},
+    {"US_IER",   US_IER,    0x00000000},
+    {"US_IDR",   US_IDR,    0x00000000},
+    {"US_IMR",   US_IMR,  0x00000000}, 
+    {"US_CSR",   US_CSR,  0x00000000}, 
+    {"US_RHR",   US_RHR,   0x00000000}, 
+    {"US_THR",   US_THR,   0x00000000}, 
+    {"US_BRGR",  US_BRGR,     0x00000000}, 
+    {"US_RTOR",  US_RTOR,     0x00000000}, 
+    {"US_TTGR",  US_TTGR,   0x00000000},
 };
 
-#define AT91SAM9260_UART_REGS_MEM_SIZE    0x3C
+#define AT91SAM9260_UART_REGS_MEM_SIZE    0x128
 
-/* UART FIFO Control */
-#define UFCON_FIFO_ENABLE                    0x1
-#define UFCON_Rx_FIFO_RESET                  0x2
-#define UFCON_Tx_FIFO_RESET                  0x4
-#define UFCON_Tx_FIFO_TRIGGER_LEVEL_SHIFT    8
-#define UFCON_Tx_FIFO_TRIGGER_LEVEL (7 << UFCON_Tx_FIFO_TRIGGER_LEVEL_SHIFT)
-#define UFCON_Rx_FIFO_TRIGGER_LEVEL_SHIFT    4
-#define UFCON_Rx_FIFO_TRIGGER_LEVEL (7 << UFCON_Rx_FIFO_TRIGGER_LEVEL_SHIFT)
+/*US_CR register fields*/
+#define CR_RSTRX	(1 << 2) /*reset receiver*/
+#define CR_RSTTX    (1 << 3) /*reset transmitter*/
+#define CR_RXEN     (1 << 4) /*receiver enable*/
+#define CR_RXDIS    (1 << 5) /*receiver disable*/
+#define CR_TXEN		(1 << 6) /*transmitter enable*/
+#define CR_TXDIS    (1 << 7) /*transmitter disable*/
+#define CR_RSTSTA   (1 << 8) /*reset status bits*/
+#define CR_STTBRK   (1 << 9) /*start break*/
+#define CR_STPBRK   (1 << 10) /*stop break*/
+#define CR_STTTO    (1 << 11) /*start timeout*/
+#define CR_SENDA    (1 << 12) /*send address*/
+#define CR_RSTIT    (1 << 13) /*reset iterations*/
+#define CR_RSTNACK  (1 << 14) /*reset no ack*/
+#define CR_RETTO    (1 << 15) /*rearm timeout*/
+#define CR_DTREN    (1 << 16) /*data terminal ready enable*/
+#define CR_DTRDIS   (1 << 17) /*data terminal ready disable*/
+#define CR_RTSEN    (1 << 18) /*request to send enable*/
+#define CR_RTSDIS   (1 << 19) /*request to send disable*/
 
-/* Uart FIFO Status */
-#define UFSTAT_Rx_FIFO_COUNT        0xff
-#define UFSTAT_Rx_FIFO_FULL         0x100
-#define UFSTAT_Rx_FIFO_ERROR        0x200
-#define UFSTAT_Tx_FIFO_COUNT_SHIFT  16
-#define UFSTAT_Tx_FIFO_COUNT        (0xff << UFSTAT_Tx_FIFO_COUNT_SHIFT)
-#define UFSTAT_Tx_FIFO_FULL_SHIFT   24
-#define UFSTAT_Tx_FIFO_FULL         (1 << UFSTAT_Tx_FIFO_FULL_SHIFT)
+/*US_MR register fields*/
+#define MR_ASYNC    (0 << 8)
+#define MR_SYNC     (1 << 8)
+#define MR_EVEN_PAR (0 << 9)
+#define MR_ODD_PAR  (1 << 9)
+#define MR_MSBF_LSB (0 << 16)
+#define MR_MSBF_MSB (1 << 16)
+#define MR_MODE9_CHRL (0 << 17)
+#define MR_MODE9_LENGTH (1 << 17)
+#define MR_CKLO_NSCK  (0 << 18)
+#define MR_CKLO_SCK  (1 << 18)
+#define MR_OVER_16   (0 << 19)
+#define MR_OVER_8    (1 << 19)
 
-/* UART Interrupt Source Pending */
-#define UINTSP_RXD      0x1 /* Receive interrupt  */
-#define UINTSP_ERROR    0x2 /* Error interrupt    */
-#define UINTSP_TXD      0x4 /* Transmit interrupt */
-#define UINTSP_MODEM    0x8 /* Modem interrupt    */
+/*usart interrupt enable register fields*/
+#define IER_RXRDY  (1 << 0)
+#define IER_TXRDY  (1 << 1)
+#define IER_RXBRK  (1 << 2)
+#define IER_ENDRX  (1 << 3)
+#define IER_ENDTx  (1 << 4)
+#define IER_OVER   (1 << 5)
+#define IER_FRAME  (1 << 6)
+#define IER_PARE   (1 << 7)
+#define IER_TIMEOUT (1 << 8)
+#define IER_TXEMPTY (1 << 9)
+#define IER_ITERATION (1 << 10)
+#define IER_TXBUFE (1 << 11)
+#define IER_RXBUFE (1 << 12)
+#define IER_NACK (1 << 13)
+#define IER_RIIC (1 << 14)
+#define IER_DSRIC (1 << 15)
+#define IER_DCDIC (1 << 16)
+#define IER_CTSIC (1 << 17)
 
-/* UART Line Control */
-#define ULCON_IR_MODE_SHIFT   6
-#define ULCON_PARITY_SHIFT    3
-#define ULCON_STOP_BIT_SHIFT  1
+/*usart mode*/
+enum usart_mode {
+	USART_MODE_NORMAL = 0, 
+	USART_MODE_RS485,  
+	USART_MODE_HANDSHAK, 
+	USART_MODE_MODEM,
+	USART_MODE_ISO7816T0,
+	USART_MODE_RESERVED5,
+	USART_MODE_ISO7816T1,
+	USART_MODE_RESERVED6,
+	USART_MODE_IRDA,
+	USART_MODE_END,
+};
 
-/* UART Tx/Rx Status */
-#define UTRSTAT_TRANSMITTER_EMPTY       0x4
-#define UTRSTAT_Tx_BUFFER_EMPTY         0x2
-#define UTRSTAT_Rx_BUFFER_DATA_READY    0x1
+/*usart clock selection*/
+enum usart_clk {
+	SCLK_MCK = 0,
+	SCLK_MCK_DIV,
+	SCLK_RESERVED,
+	SCLK_SCK,
+};
 
-/* UART Error Status */
-#define UERSTAT_OVERRUN  0x1
-#define UERSTAT_PARITY   0x2
-#define UERSTAT_FRAME    0x4
-#define UERSTAT_BREAK    0x8
+/*usart character length*/
+enum usart_character {
+	CHAR_5BITS = 0,
+	CHAR_6BITS,
+	CHAR_7BITS,
+	CHAR_8BITS,
+};
 
-typedef struct {
-    uint8_t    *data;
-    uint32_t    sp, rp; /* store and retrieve pointers */
-    uint32_t    size;
-} Exynos4210UartFIFO;
+enum usart_stopbits {
+	STOPBIT_1 = 0,
+	STOPBIT_1_5,
+	STOPBIT_2,
+	STOPBIT_RESERVVED,
+};
 
-#define TYPE_EXYNOS4210_UART "exynos4210.uart"
-#define EXYNOS4210_UART(obj) \
-    OBJECT_CHECK(Exynos4210UartState, (obj), TYPE_EXYNOS4210_UART)
+enum usart_channel_mode {
+	CHMODE_NORMAL = 0,
+	CHMODE_AUTO_ECHO,
+	CHMODE_LOCAL_LOOPBACk,
+	CHMODE_REMOTE_LOOPBACK,
+};
 
-typedef struct Exynos4210UartState {
+
+#define TYPE_AT91SAM9260_UART "at91sam9260.uart"
+
+#define AT91SAM9260_UART(obj) \
+    OBJECT_CHECK(AT91sam9260Uart, (obj), TYPE_AT91SAM9260_UART)
+
+typedef struct AT91sam9260Uart {
     SysBusDevice parent_obj;
-
     MemoryRegion iomem;
-
-    uint32_t             reg[EXYNOS4210_UART_REGS_MEM_SIZE / sizeof(uint32_t)];
-    Exynos4210UartFIFO   rx;
-    Exynos4210UartFIFO   tx;
-
+    uint32_t reg[AT91SAM9260_UART_REGS_MEM_SIZE / sizeof(uint32_t)];
     CharDriverState  *chr;
-    qemu_irq          irq;
-
+    qemu_irq irq;
     uint32_t channel;
+} AT91sam9260Uart;
 
-} Exynos4210UartState;
-
-
-#if DEBUG_UART
-/* Used only for debugging inside PRINT_DEBUG_... macros */
-static const char *at91sam9260uart_regname(hwaddr  offset)
+static void at91_writel(AT91sam9260Uart *s, uint32_t reg, uint32_t val)
 {
-
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(at91sam9260uart_regs); i++) {
-        if (offset == at91sam9260uart_regs[i].offset) {
-            return at91sam9260uart_regs[i].name;
-        }
-    }
-
-    return NULL;
-}
-#endif
-
-
-static void fifo_store(Exynos4210UartFIFO *q, uint8_t ch)
-{
-    q->data[q->sp] = ch;
-    q->sp = (q->sp + 1) % q->size;
+	s->reg[REG(reg)] = val;
 }
 
-static uint8_t fifo_retrieve(Exynos4210UartFIFO *q)
+static uint32_t at91_readl(AT91sam9260Uart *s, uint32_t reg)
 {
-    uint8_t ret = q->data[q->rp];
-    q->rp = (q->rp + 1) % q->size;
-    return  ret;
+	return s->reg[REG(reg)]; 
 }
 
-static int fifo_elements_number(Exynos4210UartFIFO *q)
+static void at91sam9260uart_irq(AT91sam9260Uart *s)
 {
-    if (q->sp < q->rp) {
-        return q->size - q->rp + q->sp;
-    }
 
-    return q->sp - q->rp;
-}
-
-static int fifo_empty_elements_number(Exynos4210UartFIFO *q)
-{
-    return q->size - fifo_elements_number(q);
-}
-
-static void fifo_reset(Exynos4210UartFIFO *q)
-{
-    if (q->data != NULL) {
-        g_free(q->data);
-        q->data = NULL;
-    }
-
-    q->data = (uint8_t *)g_malloc0(q->size);
-
-    q->sp = 0;
-    q->rp = 0;
-}
-
-static uint32_t at91sam9260uart_Tx_FIFO_trigger_level(Exynos4210UartState *s)
-{
-    uint32_t level = 0;
-    uint32_t reg;
-
-    reg = (s->reg[I_(UFCON)] & UFCON_Tx_FIFO_TRIGGER_LEVEL) >>
-            UFCON_Tx_FIFO_TRIGGER_LEVEL_SHIFT;
-
-    switch (s->channel) {
-    case 0:
-        level = reg * 32;
-        break;
-    case 1:
-    case 4:
-        level = reg * 8;
-        break;
-    case 2:
-    case 3:
-        level = reg * 2;
-        break;
-    default:
-        level = 0;
-        PRINT_ERROR("Wrong UART channel number: %d\n", s->channel);
-    }
-
-    return level;
-}
-
-static void at91sam9260uart_update_irq(Exynos4210UartState *s)
-{
-    /*
-     * The Tx interrupt is always requested if the number of data in the
-     * transmit FIFO is smaller than the trigger level.
-     */
-    if (s->reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
-
-        uint32_t count = (s->reg[I_(UFSTAT)] & UFSTAT_Tx_FIFO_COUNT) >>
-                UFSTAT_Tx_FIFO_COUNT_SHIFT;
-
-        if (count <= at91sam9260uart_Tx_FIFO_trigger_level(s)) {
-            s->reg[I_(UINTSP)] |= UINTSP_TXD;
-        }
-    }
-
-    s->reg[I_(UINTP)] = s->reg[I_(UINTSP)] & ~s->reg[I_(UINTM)];
-
-    if (s->reg[I_(UINTP)]) {
+    if (at91_readl(s, US_CR)) {
         qemu_irq_raise(s->irq);
-
-#if DEBUG_IRQ
-        fprintf(stderr, "UART%d: IRQ has been raised: %08x\n",
-                s->channel, s->reg[I_(UINTP)]);
-#endif
-
     } else {
         qemu_irq_lower(s->irq);
     }
 }
 
-static void at91sam9260uart_update_parameters(Exynos4210UartState *s)
+static void at91sam9260uart_set_parameters(AT91sam9260Uart *s)
 {
-    int speed, parity, data_bits, stop_bits, frame_size;
     QEMUSerialSetParams ssp;
-    uint64_t uclk_rate;
-
-    if (s->reg[I_(UBRDIV)] == 0) {
-        return;
-    }
-
-    frame_size = 1; /* start bit */
-    if (s->reg[I_(ULCON)] & 0x20) {
-        frame_size++; /* parity bit */
-        if (s->reg[I_(ULCON)] & 0x28) {
-            parity = 'E';
-        } else {
-            parity = 'O';
-        }
-    } else {
-        parity = 'N';
-    }
-
-    if (s->reg[I_(ULCON)] & 0x4) {
-        stop_bits = 2;
-    } else {
-        stop_bits = 1;
-    }
-
-    data_bits = (s->reg[I_(ULCON)] & 0x3) + 5;
-
-    frame_size += data_bits + stop_bits;
-
-    uclk_rate = 24000000;
-
-    speed = uclk_rate / ((16 * (s->reg[I_(UBRDIV)]) & 0xffff) +
-            (s->reg[I_(UFRACVAL)] & 0x7) + 16);
-
-    ssp.speed     = speed;
-    ssp.parity    = parity;
-    ssp.data_bits = data_bits;
-    ssp.stop_bits = stop_bits;
+    ssp.speed     = 0;
+    ssp.parity    = 0;
+    ssp.data_bits = 0;
+    ssp.stop_bits = 0;
 
     qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
     PRINT_DEBUG("UART%d: speed: %d, parity: %c, data: %d, stop: %d\n",
-                s->channel, speed, parity, data_bits, stop_bits);
+                s->channel, ssp.speed, ssp.parity, ssp.data_bits, ssp.stop_bits);
 }
 
 static void at91sam9260uart_write(void *opaque, hwaddr offset,
                                uint64_t val, unsigned size)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
-    uint8_t ch;
-
-    PRINT_DEBUG_EXTEND("UART%d: <0x%04x> %s <- 0x%08llx\n", s->channel,
-        offset, at91sam9260uart_regname(offset), (long long unsigned int)val);
+    AT91sam9260Uart *s = (AT91sam9260Uart *)opaque;
 
     switch (offset) {
-    case ULCON:
-    case UBRDIV:
-    case UFRACVAL:
-        s->reg[I_(offset)] = val;
-        at91sam9260uart_update_parameters(s);
-        break;
-    case UFCON:
-        s->reg[I_(UFCON)] = val;
-        if (val & UFCON_Rx_FIFO_RESET) {
-            fifo_reset(&s->rx);
-            s->reg[I_(UFCON)] &= ~UFCON_Rx_FIFO_RESET;
-            PRINT_DEBUG("UART%d: Rx FIFO Reset\n", s->channel);
-        }
-        if (val & UFCON_Tx_FIFO_RESET) {
-            fifo_reset(&s->tx);
-            s->reg[I_(UFCON)] &= ~UFCON_Tx_FIFO_RESET;
-            PRINT_DEBUG("UART%d: Tx FIFO Reset\n", s->channel);
-        }
-        break;
-
-    case UTXH:
-        if (s->chr) {
-            s->reg[I_(UTRSTAT)] &= ~(UTRSTAT_TRANSMITTER_EMPTY |
-                    UTRSTAT_Tx_BUFFER_EMPTY);
-            ch = (uint8_t)val;
-            qemu_chr_fe_write(s->chr, &ch, 1);
-#if DEBUG_Tx_DATA
-            fprintf(stderr, "%c", ch);
-#endif
-            s->reg[I_(UTRSTAT)] |= UTRSTAT_TRANSMITTER_EMPTY |
-                    UTRSTAT_Tx_BUFFER_EMPTY;
-            s->reg[I_(UINTSP)]  |= UINTSP_TXD;
-            at91sam9260uart_update_irq(s);
-        }
-        break;
-
-    case UINTP:
-        s->reg[I_(UINTP)] &= ~val;
-        s->reg[I_(UINTSP)] &= ~val;
-        PRINT_DEBUG("UART%d: UINTP [%04x] have been cleared: %08x\n",
-                    s->channel, offset, s->reg[I_(UINTP)]);
-        at91sam9260uart_update_irq(s);
-        break;
-    case UTRSTAT:
-    case UERSTAT:
-    case UFSTAT:
-    case UMSTAT:
-    case URXH:
-        PRINT_DEBUG("UART%d: Trying to write into RO register: %s [%04x]\n",
-                    s->channel, at91sam9260uart_regname(offset), offset);
-        break;
-    case UINTSP:
-        s->reg[I_(UINTSP)]  &= ~val;
-        break;
-    case UINTM:
-        s->reg[I_(UINTM)] = val;
-        at91sam9260uart_update_irq(s);
-        break;
-    case UCON:
-    case UMCON:
+	case US_CR:
+		at91sam9260uart_set_parameters(s);
+		break;
     default:
-        s->reg[I_(offset)] = val;
+        at91_writel(s, offset, val);
         break;
     }
 }
+
 static uint64_t at91sam9260uart_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
-    uint32_t res;
+    AT91sam9260Uart *s = (AT91sam9260Uart *)opaque;
 
     switch (offset) {
-    case UERSTAT: /* Read Only */
-        res = s->reg[I_(UERSTAT)];
-        s->reg[I_(UERSTAT)] = 0;
-        return res;
-    case UFSTAT: /* Read Only */
-        s->reg[I_(UFSTAT)] = fifo_elements_number(&s->rx) & 0xff;
-        if (fifo_empty_elements_number(&s->rx) == 0) {
-            s->reg[I_(UFSTAT)] |= UFSTAT_Rx_FIFO_FULL;
-            s->reg[I_(UFSTAT)] &= ~0xff;
-        }
-        return s->reg[I_(UFSTAT)];
-    case URXH:
-        if (s->reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
-            if (fifo_elements_number(&s->rx)) {
-                res = fifo_retrieve(&s->rx);
-#if DEBUG_Rx_DATA
-                fprintf(stderr, "%c", res);
-#endif
-                if (!fifo_elements_number(&s->rx)) {
-                    s->reg[I_(UTRSTAT)] &= ~UTRSTAT_Rx_BUFFER_DATA_READY;
-                } else {
-                    s->reg[I_(UTRSTAT)] |= UTRSTAT_Rx_BUFFER_DATA_READY;
-                }
-            } else {
-                s->reg[I_(UINTSP)] |= UINTSP_ERROR;
-                at91sam9260uart_update_irq(s);
-                res = 0;
-            }
-        } else {
-            s->reg[I_(UTRSTAT)] &= ~UTRSTAT_Rx_BUFFER_DATA_READY;
-            res = s->reg[I_(URXH)];
-        }
-        return res;
-    case UTXH:
-        PRINT_DEBUG("UART%d: Trying to read from WO register: %s [%04x]\n",
-                    s->channel, at91sam9260uart_regname(offset), offset);
-        break;
+	case US_CR:
+		at91sam9260uart_irq(s);
+		break;
     default:
-        return s->reg[I_(offset)];
+        return at91_readl(s, offset);
     }
 
     return 0;
@@ -488,101 +300,52 @@ static const MemoryRegionOps at91sam9260uart_ops = {
     },
 };
 
-static int at91sam9260uart_can_receive(void *opaque)
-{
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
-
-    return fifo_empty_elements_number(&s->rx);
-}
-
-
 static void at91sam9260uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
-    int i;
-
-    if (s->reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
-        if (fifo_empty_elements_number(&s->rx) < size) {
-            for (i = 0; i < fifo_empty_elements_number(&s->rx); i++) {
-                fifo_store(&s->rx, buf[i]);
-            }
-            s->reg[I_(UINTSP)] |= UINTSP_ERROR;
-            s->reg[I_(UTRSTAT)] |= UTRSTAT_Rx_BUFFER_DATA_READY;
-        } else {
-            for (i = 0; i < size; i++) {
-                fifo_store(&s->rx, buf[i]);
-            }
-            s->reg[I_(UTRSTAT)] |= UTRSTAT_Rx_BUFFER_DATA_READY;
-        }
-        /* XXX: Around here we maybe should check Rx trigger level */
-        s->reg[I_(UINTSP)] |= UINTSP_RXD;
-    } else {
-        s->reg[I_(URXH)] = buf[0];
-        s->reg[I_(UINTSP)] |= UINTSP_RXD;
-        s->reg[I_(UTRSTAT)] |= UTRSTAT_Rx_BUFFER_DATA_READY;
-    }
-
-    at91sam9260uart_update_irq(s);
+    AT91sam9260Uart *s = (AT91sam9260Uart *)opaque;
+    at91sam9260uart_irq(s);
 }
 
+static int at91sam9260uart_can_receive(void *opaque)
+{
+	return 0;
+}
 
+/**
+ * at91sam9260uart_event:串口发生的事件处理
+ */
 static void at91sam9260uart_event(void *opaque, int event)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
 
-    if (event == CHR_EVENT_BREAK) {
-        /* When the RxDn is held in logic 0, then a null byte is pushed into the
-         * fifo */
-        fifo_store(&s->rx, '\0');
-        s->reg[I_(UERSTAT)] |= UERSTAT_BREAK;
-        at91sam9260uart_update_irq(s);
-    }
 }
-
 
 static void at91sam9260uart_reset(DeviceState *dev)
 {
-    Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    AT91sam9260Uart *s = AT91SAM9260_UART(dev);
     int i;
 
     for (i = 0; i < ARRAY_SIZE(at91sam9260uart_regs); i++) {
-        s->reg[I_(at91sam9260uart_regs[i].offset)] =
+        s->reg[REG(at91sam9260uart_regs[i].offset)] =
                 at91sam9260uart_regs[i].reset_value;
     }
-
-    fifo_reset(&s->rx);
-    fifo_reset(&s->tx);
-
     PRINT_DEBUG("UART%d: Rx FIFO size: %d\n", s->channel, s->rx.size);
 }
 
-static const VMStateDescription vmstate_at91sam9260uart_fifo = {
-    .name = "exynos4210.uart.fifo",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(sp, Exynos4210UartFIFO),
-        VMSTATE_UINT32(rp, Exynos4210UartFIFO),
-        VMSTATE_VBUFFER_UINT32(data, Exynos4210UartFIFO, 1, NULL, 0, size),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static const VMStateDescription vmstate_at91sam9260uart = {
-    .name = "exynos4210.uart",
+    .name = "at91sam9260.uart",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT(rx, Exynos4210UartState, 1,
-                       vmstate_at91sam9260uart_fifo, Exynos4210UartFIFO),
-        VMSTATE_UINT32_ARRAY(reg, Exynos4210UartState,
-                             EXYNOS4210_UART_REGS_MEM_SIZE / sizeof(uint32_t)),
+        VMSTATE_UINT32_ARRAY(reg, AT91sam9260Uart,
+                             AT91SAM9260_UART_REGS_MEM_SIZE / sizeof(uint32_t)),
         VMSTATE_END_OF_LIST()
     }
 };
 
+/**
+ * at91sam9260uart_create:创建串口设备接口
+ */
 DeviceState *at91sam9260uart_create(hwaddr addr,
                                     int fifo_size,
                                     int channel,
@@ -595,7 +358,7 @@ DeviceState *at91sam9260uart_create(hwaddr addr,
     const char chr_name[] = "serial";
     char label[ARRAY_SIZE(chr_name) + 1];
 
-    dev = qdev_create(NULL, TYPE_EXYNOS4210_UART);
+    dev = qdev_create(NULL, TYPE_AT91SAM9260_UART);
 
     if (!chr) {
         if (channel >= MAX_SERIAL_PORTS) {
@@ -629,11 +392,11 @@ DeviceState *at91sam9260uart_create(hwaddr addr,
 
 static int at91sam9260uart_init(SysBusDevice *dev)
 {
-    Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    AT91sam9260Uart *s = AT91SAM9260_UART(dev);
 
     /* memory mapping */
     memory_region_init_io(&s->iomem, OBJECT(s), &at91sam9260uart_ops, s,
-                          "exynos4210.uart", EXYNOS4210_UART_REGS_MEM_SIZE);
+                          "at91sam9260.uart", AT91SAM9260_UART_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
@@ -645,10 +408,8 @@ static int at91sam9260uart_init(SysBusDevice *dev)
 }
 
 static Property at91sam9260uart_properties[] = {
-    DEFINE_PROP_CHR("chardev", Exynos4210UartState, chr),
-    DEFINE_PROP_UINT32("channel", Exynos4210UartState, channel, 0),
-    DEFINE_PROP_UINT32("rx-size", Exynos4210UartState, rx.size, 16),
-    DEFINE_PROP_UINT32("tx-size", Exynos4210UartState, tx.size, 16),
+    DEFINE_PROP_CHR("chardev", AT91sam9260Uart, chr),
+    DEFINE_PROP_UINT32("channel", AT91sam9260Uart, channel, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -664,9 +425,9 @@ static void at91sam9260uart_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo at91sam9260uart_info = {
-    .name          = TYPE_EXYNOS4210_UART,
+    .name          = TYPE_AT91SAM9260_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210UartState),
+    .instance_size = sizeof(AT91sam9260Uart),
     .class_init    = at91sam9260uart_class_init,
 };
 

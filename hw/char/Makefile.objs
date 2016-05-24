@@ -10,6 +10,7 @@ common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o
 common-obj-$(CONFIG_CADENCE) += cadence_uart.o
 
 obj-$(CONFIG_EXYNOS4) += exynos4210_uart.o
+obj-$(CONFIG_AT91SAM9260) += at91sam9260_uart.o
 obj-$(CONFIG_COLDFIRE) += mcf_uart.o
 obj-$(CONFIG_OMAP) += omap_uart.o
 obj-$(CONFIG_SH4) += sh_serial.o

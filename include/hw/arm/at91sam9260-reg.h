@@ -1,6 +1,9 @@
 #ifndef _HW_AT91SAM9260_H_
 #define _HW_AT91SAM9260_H_
 
+#include "qemu-common.h"
+#include "exec/memory.h"
+
 /* base periph addresses */
 #define AT91_LCDC_BASE        0x00700000
 #define AT91_PERIPH_BASE     0xF0000000
@@ -147,4 +150,9 @@
 
 #define AT91_PERIPH_SYS_ID 1
 
+DeviceState *at91sam9260uart_create(hwaddr addr,
+                                    int fifo_size,
+                                    int channel,
+                                    CharDriverState *chr,
+                                    qemu_irq irq);
 #endif//!_HW_AT91SAM9263_DEFS_H_
