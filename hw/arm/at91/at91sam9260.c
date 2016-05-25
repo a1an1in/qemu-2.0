@@ -46,21 +46,25 @@ typedef struct at91sam9260_state {
 	MemoryRegion internal_sram;
 	qemu_irq *irq_table;
 	MemoryRegion boot_rom;
-	MemoryRegion dram0;
+	MemoryRegion sdramc;
 	MemoryRegion rom;
 }at91sam9260_state;
 
 static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long ram_size)
 {
+#if 0
     DeviceState *dev;
     DeviceState *pit;
     DeviceState *pmc;
     DeviceState *spi;
+#endif
     ObjectClass *cpu;
     Error *err = NULL;
+#if 0
     qemu_irq pic[32];
     qemu_irq pic1[32];
 	int i;
+#endif
 
 	at91sam9260_state *s = g_new(at91sam9260_state, 1); 
 	cpu = cpu_class_by_name(TYPE_ARM_CPU, "arm926");
@@ -72,7 +76,7 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
 		error_report("%s", error_get_pretty(err));
 	    exit(1);
 	}
-
+#if 0
 	/*at91 aic*/
     dev = sysbus_create_varargs("at91.aic", AT91_AIC_BASE,
                                 qdev_get_gpio_in(DEVICE(cpuobj), ARM_CPU_IRQ),
@@ -104,23 +108,27 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
 
     sysbus_create_simple("at91.emac", AT91_EMAC_BASE, pic[21]);
     sysbus_create_simple("at91.lcdc", AT91_LCDC_BASE, pic[26]);
+#endif
+
 	/*internal sram memory*/
     memory_region_init_ram(&s->internal_sram, NULL, "at91.isram",80*1024);
     vmstate_register_ram_global(&s->internal_sram);
     memory_region_add_subregion(system_mem,0x00300000, &s->internal_sram);
 	/*boot ram */
     memory_region_init_ram(&s->boot_rom, NULL, "at91.boot_rom",0x100000);
-    vmstate_register_ram_global(&s->internal_sram);
+    vmstate_register_ram_global(&s->boot_rom);
     memory_region_add_subregion(system_mem,0x00000000, &s->boot_rom);
-	/*sdram0*/
-    memory_region_init_ram(&s->dram0, NULL, "at91.sdram0",0x100000);
-    vmstate_register_ram_global(&s->dram0);
-    memory_region_add_subregion(system_mem,0x20000000, &s->dram0);
+	/*sdramc*/
+    memory_region_init_ram(&s->sdramc, NULL, "at91.sdramc",0xFFFFFFF);
+    vmstate_register_ram_global(&s->sdramc);
+    memory_region_add_subregion(system_mem,0x20000000, &s->sdramc);
 	/*rom*/
     memory_region_init_ram(&s->rom, NULL, "at91.rom",32*1024);
     vmstate_register_ram_global(&s->rom);
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_mem,0x00100000, &s->rom);
+
+    at91sam9260uart_create(AT91_USART0_BASE, 4, 0, NULL, NULL);
 	return s;
 }
 

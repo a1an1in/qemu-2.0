@@ -476,15 +476,16 @@ DeviceState *at91sam9260uart_create(hwaddr addr,
 
     qdev_prop_set_chr(dev, "chardev", chr);
     qdev_prop_set_uint32(dev, "channel", channel);
-    qdev_prop_set_uint32(dev, "rx-size", fifo_size);
-    qdev_prop_set_uint32(dev, "tx-size", fifo_size);
+    //qdev_prop_set_uint32(dev, "rx-size", fifo_size);
+   // qdev_prop_set_uint32(dev, "tx-size", fifo_size);
 
     bus = SYS_BUS_DEVICE(dev);
     qdev_init_nofail(dev);
     if (addr != (hwaddr)-1) {
         sysbus_mmio_map(bus, 0, addr);
     }
-    sysbus_connect_irq(bus, 0, irq);
+    if (irq)
+    	sysbus_connect_irq(bus, 0, irq);
 
     return dev;
 }
