@@ -605,6 +605,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
         chr = serial_hds[channel];
         if (!chr) {
             snprintf(label, ARRAY_SIZE(label), "%s%d", chr_name, channel);
+			/*创建一个字符设备*/
             chr = qemu_chr_new(label, "null", NULL);
             if (!(chr)) {
                 hw_error("Can't assign serial port to UART%d.\n", channel);

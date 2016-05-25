@@ -993,6 +993,15 @@ static bool memory_region_dispatch_write(MemoryRegion *mr,
     return false;
 }
 
+/**
+ * memory_region_init_io:初始化仿真cpu的内存
+ * @ mr:仿真内存结构
+ * @ owner:对象的拥有者
+ * @ ops:内存访问接口
+ * @ opaque:
+ * @ name:内存的名字
+ * @ size:内存的大小
+ */
 void memory_region_init_io(MemoryRegion *mr,
                            Object *owner,
                            const MemoryRegionOps *ops,
@@ -1007,6 +1016,9 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ram_addr = ~(ram_addr_t)0;
 }
 
+/**
+ * memory_region_init_ram:初始化mr RAM内存
+ */
 void memory_region_init_ram(MemoryRegion *mr,
                             Object *owner,
                             const char *name,
@@ -1214,6 +1226,9 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
     }
 }
 
+/**
+ * memory_region_set_readonly:设置mr 内存为只读
+ */
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
 {
     if (mr->readonly != readonly) {
@@ -1456,6 +1471,12 @@ done:
 }
 
 
+/**
+ * memory_region_add_subregion:向mr注册subregion内存
+ * @ mr:subregion所在的内存区结构
+ * @ offset:subregion内存起始物理地址
+ * @ subregion:
+ */
 void memory_region_add_subregion(MemoryRegion *mr,
                                  hwaddr offset,
                                  MemoryRegion *subregion)

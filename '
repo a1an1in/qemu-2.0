@@ -101,7 +101,6 @@ typedef struct at91samUartReg {
 	uint32_t us_thr;
 	uint32_t us_brgr;
 	uint32_t us_rtor;
-	uint32_t us_ttgr;
 } at91samUartReg;
 
 
@@ -131,7 +130,8 @@ typedef struct at91samUartReg {
 #define MR_PAR		(1 << 9)
 #define MR_MSBF_LSB (0 << 16)
 #define MR_MSBF_MSB (1 << 16)
-#define MR_MODE9	(1 << 17)
+#define MR_MODE9_CHRL (0 << 17)
+#define MR_MODE9_LENGTH (1 << 17)
 #define MR_CKLO_NSCK  (0 << 18)
 #define MR_CKLO_SCK  (1 << 18)
 #define MR_OVER_16   (0 << 19)
@@ -198,15 +198,15 @@ enum usart_clk {
 
 /*usart character length*/
 enum usart_character {
-	CHAR_5BITS = 5,
+	CHAR_5BITS = 0,
 	CHAR_6BITS,
 	CHAR_7BITS,
 	CHAR_8BITS,
-	CHAR_9BITS,
 };
 
 enum usart_stopbits {
-	STOPBIT_1 = 1,
+	STOPBIT_1 = 0,
+	STOPBIT_1_5,
 	STOPBIT_2,
 	STOPBIT_RESERVVED,
 };
@@ -261,34 +261,12 @@ static void at91sam9260uart_set_parameters(AT91sam9260Uart *s)
 	int speed, parity, data_bits, stop_bits;
 	uint32_t us_mr = s->regs.us_mr;
 
-	speed = 9600;
 	parity = us_mr & MR_PAR ? PAR_ODD : PAR_EVEN;
-	if (us_mr & MR_MODE9)
-		data_bits = CHAR_9BITS;
-	else {
-		switch ((us_mr >> 5)& 2) {
-		case 0:
-			data_bits = CHAR_5BITS; 
-			break;
-		case 1:
-			data_bits = CHAR_6BITS;
-			break;
-		case 2:
-			data_bits = CHAR_7BITS;
-			break;
-		case 3:
-			data_bits = CHAR_8BITS;
-			break;
-		default:
-			data_bits = 0;
-			break;
-		}
-	} 
-	stop_bits = STOPBIT_1;	
-    ssp.speed     = speed;
-    ssp.parity    = parity;
-    ssp.data_bits = data_bits;
-    ssp.stop_bits = stop_bits;
+	data_bits = 
+    ssp.speed     = 0;
+    ssp.parity    = 0;
+    ssp.data_bits = 0;
+    ssp.stop_bits = 0;
 
     qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
@@ -317,8 +295,8 @@ static void at91sam9260uart_write(void *opaque, hwaddr offset,
 		}
 		if (val & CR_RXEN){
 			if (s->regs.us_cr & CR_RXDIS || val & CR_RXDIS) {
-				s->regs.us_cr &= ~(CR_RXEN);
-				val &= ~(CR_RXEN);
+				s->regs.us_cr &= ~(CR_EXEN);
+				val &= ~(CR_RXEN)
 			}
 		}
 		if (val & CR_TXEN){
@@ -362,10 +340,10 @@ static uint64_t at91sam9260uart_read(void *opaque, hwaddr offset,
     AT91sam9260Uart *s = (AT91sam9260Uart *)opaque;
 
 	if (size > sizeof(uint32_t))
-		return 0;
+		return ;
 
 	if (offset > US_MAX)
-		return 0;
+		return ;
 
     switch (offset) {
 	case US_CR:

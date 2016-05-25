@@ -143,6 +143,12 @@ static int sysbus_device_init(DeviceState *dev)
     return sbc->init(sd);
 }
 
+/**
+ * sysbus_create_varargs:创建系统总线类型的设备
+ * @ name:设备的名称
+ * @ addr:设备的物理地址
+ * @ ... 其它可变信息
+ */
 DeviceState *sysbus_create_varargs(const char *name,
                                    hwaddr addr, ...)
 {

@@ -885,6 +885,12 @@ void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)
     object_property_set_int(OBJECT(dev), value, name, &error_abort);
 }
 
+/**
+ * qdev_prop_set_uint32:设置qdev设备的属性
+ * @ dev: qdev设备
+ * @ name:设备的属性名字
+ * @ value:属性值
+ */
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value)
 {
     object_property_set_int(OBJECT(dev), value, name, &error_abort);
