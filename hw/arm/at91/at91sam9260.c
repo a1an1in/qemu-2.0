@@ -128,7 +128,8 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_mem,0x00100000, &s->rom);
 
-    at91sam9260uart_create(AT91_USART0_BASE, 4, 0, NULL, NULL);
+    sysbus_create_varargs("at91sam9260_usart", AT91_USART3_BASE, NULL);
+    //at91sam9260uart_create(AT91_USART3_BASE, 4, 0, NULL, NULL);
 	return s;
 }
 

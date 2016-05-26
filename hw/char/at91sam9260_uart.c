@@ -223,7 +223,7 @@ enum usart_parity {
 	PAR_ODD,
 };
 
-#define TYPE_AT91SAM9260_UART "at91sam9260.uart"
+#define TYPE_AT91SAM9260_UART "at91sam9260_usart"
 
 #define AT91SAM9260_UART(obj) \
     OBJECT_CHECK(AT91sam9260Uart, (obj), TYPE_AT91SAM9260_UART)
@@ -428,20 +428,42 @@ static void at91sam9260uart_reset(DeviceState *dev)
     PRINT_DEBUG("UART%d: Rx FIFO size: %d\n", s->channel, s->rx.size);
 }
 
-#if 0
-static const VMStateDescription vmstate_at91sam9260uart = {
-    .name = "at91sam9260.uart",
+static const VMStateDescription vmstate_at91sam9260_reg = {
+    .name = "at91sam9260_usart",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AT91sam9260Uart,
-                             sizeof(at91samUartReg)),
+        VMSTATE_UINT32(us_cr, at91samUartReg),
+        VMSTATE_UINT32(us_mr, at91samUartReg),
+        VMSTATE_UINT32(us_ier, at91samUartReg),
+        VMSTATE_UINT32(us_idr, at91samUartReg),
+        VMSTATE_UINT32(us_imr, at91samUartReg),
+        VMSTATE_UINT32(us_csr, at91samUartReg),
+        VMSTATE_UINT32(us_rhr, at91samUartReg),
+        VMSTATE_UINT32(us_thr, at91samUartReg),
+        VMSTATE_UINT32(us_brgr, at91samUartReg),
+        VMSTATE_UINT32(us_rtor, at91samUartReg),
+        VMSTATE_UINT32(us_ttgr, at91samUartReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+static const VMStateDescription vmstate_at91sam9260uart = {
+    .name = "at91sam9260_usart",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(recv_flags, AT91sam9260Uart),
+        VMSTATE_UINT8(send_flags, AT91sam9260Uart),
+        VMSTATE_UINT8(mode, AT91sam9260Uart),
+        VMSTATE_STRUCT(regs, AT91sam9260Uart, 1,
+                          vmstate_at91sam9260_reg, at91samUartReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
-#endif
+#if 0
 /**
  * at91sam9260uart_create:创建串口设备接口
  */
@@ -490,13 +512,14 @@ DeviceState *at91sam9260uart_create(hwaddr addr,
     return dev;
 }
 
+#endif
 static int at91sam9260uart_init(SysBusDevice *dev)
 {
     AT91sam9260Uart *s = AT91SAM9260_UART(dev);
 
     /* memory mapping */
     memory_region_init_io(&s->iomem, OBJECT(s), &at91sam9260uart_ops, s,
-                          "at91sam9260.uart", AT91SAM9260_UART_REGS_MEM_SIZE);
+                          "at91sam9260_usart", AT91SAM9260_UART_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
@@ -522,7 +545,7 @@ static void at91sam9260uart_class_init(ObjectClass *klass, void *data)
     k->init = at91sam9260uart_init;
     dc->reset = at91sam9260uart_reset;
     dc->props = at91sam9260uart_properties;
-    dc->vmsd = NULL;//&vmstate_at91sam9260uart;
+    dc->vmsd = &vmstate_at91sam9260uart;
 }
 
 static const TypeInfo at91sam9260uart_info = {
