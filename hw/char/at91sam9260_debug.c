@@ -354,11 +354,20 @@ static int at91sam9260debug_can_receive(void *opaque)
 }
 
 /**
- * at91sam9260debug_event:串口发生的事件处理
+ * at91sam9260debug_event:handle debug uart event
  */
 static void at91sam9260debug_event(void *opaque, int event)
 {
+	at91sam9260_debug *s = (at91sam9260_debug *)opaque;
 
+	switch (event) {
+	case CHR_EVENT_BREAK:
+	case CHR_EVENT_FOCUS:
+		memset(&s->regs, 0, sizeof(at91sam9260_debug_regs));
+		break;
+	default:
+		break;
+	}
 }
 
 static void at91sam9260debug_reset(DeviceState *dev)
