@@ -195,6 +195,9 @@ void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
 
 static void remove_fd_in_watch(CharDriverState *chr);
 
+/**
+ * qemu_chr_add_handlers:为s字符设备初始化操作方法接口
+ */
 void qemu_chr_add_handlers(CharDriverState *s,
                            IOCanReadHandler *fd_can_read,
                            IOReadHandler *fd_read,
@@ -3476,7 +3479,9 @@ CharDriverState *qemu_chr_find(const char *name)
     return NULL;
 }
 
-/* Get a character (serial) device interface.  */
+/**
+ * qemu_char_get_next_serial:申请一个串口设备
+ */
 CharDriverState *qemu_char_get_next_serial(void)
 {
     static int next_serial;

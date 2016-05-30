@@ -152,22 +152,10 @@ enum debug_stopbits {
 	STOPBIT_RESERVVED,
 };
 
-enum debug_channel_mode {
-	CHMODE_NORMAL = 0,
-	CHMODE_AUTO_ECHO,
-	CHMODE_LOCAL_LOOPBACk,
-	CHMODE_REMOTE_LOOPBACK,
-};
-
 enum debug_parity {
 	PAR_EVEN = 0,
 	PAR_ODD,
 };
-
-#define TYPE_AT91SAM9260_DEBUG "at91sam9260_debug"
-
-#define AT91SAM9260_DEBUG(obj) \
-    OBJECT_CHECK(at91sam9260_debug, (obj), "at91sam9260_debug")
 
 typedef struct at91sam9260_debug {
     SysBusDevice parent_obj;
@@ -177,6 +165,11 @@ typedef struct at91sam9260_debug {
     qemu_irq irq;
 } at91sam9260_debug;
 
+#define TYPE_AT91SAM9260_DEBUG "at91sam9260_debug"
+
+#define AT91SAM9260_DEBUG(obj) \
+    OBJECT_CHECK(at91sam9260_debug, (obj), "at91sam9260_debug")
+
 static int at91samdebug_irq_pending(at91sam9260_debug *s)
 {
 	return 0;
@@ -184,12 +177,10 @@ static int at91samdebug_irq_pending(at91sam9260_debug *s)
 
 static void at91sam9260debug_irq(at91sam9260_debug *s)
 {
-
-    if (at91samdebug_irq_pending(s)) {
+    if (at91samdebug_irq_pending(s)) 
         qemu_irq_raise(s->irq);
-    } else {
+     else 
         qemu_irq_lower(s->irq);
-    }
 }
 
 static void at91sam9260debug_set_parameters(at91sam9260_debug *s)
@@ -213,6 +204,16 @@ static void at91sam9260debug_set_parameters(at91sam9260_debug *s)
                 s->channel, ssp.speed, ssp.parity, ssp.data_bits, ssp.stop_bits);
 }
 
+static int is_at91sam9260_recv_disable(at91sam9260_debug *s)
+{
+	return s->regs.dbgu_sr & CR_RXDIS || !s->regs.dbgu_brgr;
+}
+
+static int is_at91sam9260_send_disable(at91sam9260_debug *s)
+{
+	return s->regs.dbgu_sr & CR_TXDIS ||!s->regs.dbgu_brgr;
+}
+
 static void at91sam9260debug_write(void *opaque, hwaddr offset,
                                uint64_t val, unsigned size)
 {
@@ -226,21 +227,27 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
 
     switch (offset) {
 	case DBGU_CR:
-		if (val & CR_RSTSTA) {
+		if (val & CR_RSTSTA) 
 			s->regs.dbgu_sr &= ~(SR_PARE | SR_OVER); 
-			val &= ~(SR_PARE | SR_OVER);   
-		}
+
 		if (val & CR_RXEN){
 			if (s->regs.dbgu_cr & CR_RXDIS || val & CR_RXDIS) {
 				s->regs.dbgu_cr &= ~(CR_RXEN);
+				s->regs.dbgu_sr &= ~SR_RXRDY;
 				val &= ~(CR_RXEN);
+				val |= CR_RXDIS;
 			}
+			s->regs.dbgu_rhr = 0;
 		}
 		if (val & CR_TXEN){
 			if (s->regs.dbgu_cr & CR_TXDIS || val & CR_TXDIS) {
 				s->regs.dbgu_cr &= ~(CR_TXEN);
+				s->regs.dbgu_sr &= ~SR_TXRDY;
 				val &= ~(CR_TXEN);
+				val |= CR_TXDIS;
 			}
+			s->regs.dbgu_thr = 0;
+			s->regs.dbgu_sr |= SR_TXRDY;
 		}
 		s->regs.dbgu_cr |= val;
 		break;
@@ -255,9 +262,13 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
 		s->regs.dbgu_idr |= val;
 		s->regs.dbgu_imr |= s->regs.dbgu_idr;
 		break;
-	case DBGU_THR:
-		if (s->regs.dbgu_brgr)
-			s->regs.dbgu_thr = val;
+	case DBGU_THR:  
+		if (is_at91sam9260_send_disable(s))
+			break;
+		s->regs.dbgu_thr = val & 0xff;
+		s->regs.dbgu_sr &= ~SR_TXRDY;
+        if (s->chr)
+            qemu_chr_fe_write(s->chr,(const uint8_t *)&s->regs.dbgu_thr, 1);
 		break;
 	case DBGU_BRGR:
 		s->regs.dbgu_brgr = val;
@@ -279,9 +290,6 @@ static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
 	if (offset > DBGU_MAX)
 		return 0;
 
-	if (!s->regs.dbgu_brgr)
-		return 0;
-
     switch (offset) {
 	case DBGU_CR:
 		ret = s->regs.dbgu_cr;
@@ -296,9 +304,13 @@ static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
 		ret = s->regs.dbgu_sr;
 		break;
 	case DBGU_RHR:
+		if (is_at91sam9260_recv_disable(s))
+			break;
 		ret = s->regs.dbgu_rhr;
 		s->regs.dbgu_rhr = 0;
 		s->regs.dbgu_rhr &= ~SR_RXRDY;
+        if (s->chr)
+            qemu_chr_accept_input(s->chr);
 		break;
 	case DBGU_BRGR:
 		ret = s->regs.dbgu_brgr;
@@ -306,7 +318,6 @@ static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
     default:
 		break;
     }
-
     return ret;
 }
 
@@ -337,7 +348,7 @@ static void at91sam9260debug_receive(void *opaque, const uint8_t *buf, int size)
 static int at91sam9260debug_can_receive(void *opaque)
 {
 	at91sam9260_debug *s = (at91sam9260_debug *)opaque;
-	if (s->regs.dbgu_rhr && (s->regs.dbgu_sr & SR_RXRDY))
+	if (is_at91sam9260_recv_disable(s))
 		return 0;
 	return 1;
 }
