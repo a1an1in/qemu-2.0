@@ -193,8 +193,8 @@ static void at91sam9260debug_set_parameters(at91sam9260_debug *s)
 	data_bits = CHAR_8BITS;
 
 	stop_bits = STOPBIT_1;	
-    ssp.speed     = speed;
-    ssp.parity    = parity;
+    ssp.speed = speed;
+    ssp.parity = parity;
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
 
