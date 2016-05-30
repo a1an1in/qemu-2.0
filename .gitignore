@@ -118,4 +118,5 @@ tags
 TAGS
 .cproject
 .project
+.settings/*
 *~
