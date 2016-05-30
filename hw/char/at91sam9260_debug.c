@@ -256,7 +256,8 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
 		s->regs.dbgu_imr |= s->regs.dbgu_idr;
 		break;
 	case DBGU_THR:
-		s->regs.dbgu_thr = val;
+		if (s->regs.dbgu_brgr)
+			s->regs.dbgu_thr = val;
 		break;
 	case DBGU_BRGR:
 		s->regs.dbgu_brgr = val;
@@ -269,6 +270,7 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
 static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
+	uint64_t ret = 0;
     at91sam9260_debug *s = (at91sam9260_debug *)opaque;
 
 	if (size > sizeof(uint32_t))
@@ -277,25 +279,35 @@ static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
 	if (offset > DBGU_MAX)
 		return 0;
 
+	if (!s->regs.dbgu_brgr)
+		return 0;
+
     switch (offset) {
 	case DBGU_CR:
-		at91sam9260debug_irq(s);
+		ret = s->regs.dbgu_cr;
 		break;
 	case DBGU_MR:
+		ret = s->regs.dbgu_mr;
 		break;
 	case DBGU_IMR:
+		ret = s->regs.dbgu_imr;
 		break;
 	case DBGU_SR:
+		ret = s->regs.dbgu_sr;
 		break;
 	case DBGU_RHR:
+		ret = s->regs.dbgu_rhr;
+		s->regs.dbgu_rhr = 0;
+		s->regs.dbgu_rhr &= ~SR_RXRDY;
 		break;
 	case DBGU_BRGR:
+		ret = s->regs.dbgu_brgr;
 		break;
     default:
 		break;
     }
 
-    return 0;
+    return ret;
 }
 
 static const MemoryRegionOps at91sam9260debug_ops = {
@@ -311,12 +323,23 @@ static const MemoryRegionOps at91sam9260debug_ops = {
 static void at91sam9260debug_receive(void *opaque, const uint8_t *buf, int size)
 {
     at91sam9260_debug *s = (at91sam9260_debug *)opaque;
+
+	if (!s->regs.dbgu_rhr && !(s->regs.dbgu_sr & SR_RXRDY)) {
+		s->regs.dbgu_rhr = *((uint8_t*)buf);
+		s->regs.dbgu_sr |= SR_RXRDY;
+	} else {
+		if (s->regs.dbgu_sr & SR_RXRDY)
+			s->regs.dbgu_sr |= SR_OVER;
+	}
     at91sam9260debug_irq(s);
 }
 
 static int at91sam9260debug_can_receive(void *opaque)
 {
-	return 0;
+	at91sam9260_debug *s = (at91sam9260_debug *)opaque;
+	if (s->regs.dbgu_rhr && (s->regs.dbgu_sr & SR_RXRDY))
+		return 0;
+	return 1;
 }
 
 /**
@@ -384,6 +407,7 @@ static void at91sam9260debug_init(Object *obj)
     memory_region_init_io(&s->iomem, OBJECT(s), &at91sam9260debug_ops, s,
                           "at91sam9260_debug", AT91SAM9260_DEBUG_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
+	/*Todo:需要加入中断模式的支持*/
 
    // sysbus_init_irq(dev, &s->irq);
 
