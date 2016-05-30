@@ -3177,6 +3177,7 @@ typedef struct CharDriver {
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 } CharDriver;
 
+/*用于管理字符设备的链表*/
 static GSList *backends;
 
 void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *))
@@ -3187,6 +3188,7 @@ void register_char_driver(const char *name, CharDriverState *(*open)(QemuOpts *)
     s->name = g_strdup(name);
     s->open = open;
 
+	/*s插入到backends链表的尾部,并返回链表的头部*/
     backends = g_slist_append(backends, s);
 }
 
