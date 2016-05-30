@@ -226,7 +226,7 @@ enum usart_parity {
 #define TYPE_AT91SAM9260_UART "at91sam9260_usart"
 
 #define AT91SAM9260_UART(obj) \
-    OBJECT_CHECK(AT91sam9260Uart, (obj), TYPE_AT91SAM9260_UART)
+    OBJECT_CHECK(AT91sam9260Uart, (obj), "at91sam9260_usart")
 
 typedef struct AT91sam9260Uart {
     SysBusDevice parent_obj;
@@ -513,8 +513,22 @@ DeviceState *at91sam9260uart_create(hwaddr addr,
 }
 
 #endif
-static int at91sam9260uart_init(SysBusDevice *dev)
+
+static void at91sam9260uart_realize(DeviceState *dev, Error **errp)
 {
+	AT91sam9260Uart *s = AT91SAM9260_UART(dev);
+
+    s->chr = qemu_char_get_next_serial();
+
+    if (s->chr) {
+    	qemu_chr_add_handlers(s->chr, at91sam9260uart_can_receive,
+    			at91sam9260uart_receive, at91sam9260uart_event, s);
+    }
+}
+
+static void at91sam9260uart_init(Object *obj)
+{
+	SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     AT91sam9260Uart *s = AT91SAM9260_UART(dev);
 
     /* memory mapping */
@@ -522,29 +536,31 @@ static int at91sam9260uart_init(SysBusDevice *dev)
                           "at91sam9260_usart", AT91SAM9260_UART_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 
-    sysbus_init_irq(dev, &s->irq);
+   // sysbus_init_irq(dev, &s->irq);
 
-    qemu_chr_add_handlers(s->chr, at91sam9260uart_can_receive,
-                          at91sam9260uart_receive, at91sam9260uart_event, s);
+   // qemu_chr_add_handlers(s->chr, at91sam9260uart_can_receive,
+    //                      at91sam9260uart_receive, at91sam9260uart_event, s);
 
 	memset(&s->regs, 0, sizeof(at91samUartReg));
-    return 0;
 }
 
+#if 0
 static Property at91sam9260uart_properties[] = {
     DEFINE_PROP_CHR("chardev", AT91sam9260Uart, chr),
     DEFINE_PROP_UINT32("channel", AT91sam9260Uart, channel, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
+#endif
 
 static void at91sam9260uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    //SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = at91sam9260uart_init;
+    //k->init = at91sam9260uart_init;
     dc->reset = at91sam9260uart_reset;
-    dc->props = at91sam9260uart_properties;
+    dc->realize = at91sam9260uart_realize;
+   // dc->props = at91sam9260uart_properties;
     dc->vmsd = &vmstate_at91sam9260uart;
 }
 
@@ -552,6 +568,7 @@ static const TypeInfo at91sam9260uart_info = {
     .name          = TYPE_AT91SAM9260_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AT91sam9260Uart),
+	.instance_init = at91sam9260uart_init,
     .class_init    = at91sam9260uart_class_init,
 };
 
