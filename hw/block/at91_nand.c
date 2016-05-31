@@ -24,10 +24,8 @@ typedef struct at91_nand {
 /*nand pin signal*/
 #define CLE_EN 	1
 #define CLE_DIS 0
-#define ALE_EN  1
-#define ALE_DIS 0
-#define CE_EN   1
-#define CE_DIS  0
+#define ALE_EN  (1 << 21)
+#define CE_EN   (1 << 22)
 #define WP_EN   1
 #define WP_DIS  0
 #define GND_EN  1
