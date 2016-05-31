@@ -128,8 +128,10 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_mem,0x00100000, &s->rom);
 
+	/*create at19 debug unit*/
     sysbus_create_varargs("at91sam9260_debug", AT91_DBGU_BASE, NULL);
-    //at91sam9260uart_create(AT91_USART3_BASE, 4, 0, NULL, NULL);
+	/*create nand flash*/
+    //sysbus_create_varargs("nand", AT91_NAND_BASE, NULL);
 	return s;
 }
 

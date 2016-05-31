@@ -29,61 +29,8 @@
 #define AT91_PITC_BASE       0xFFFFFD30
 #define AT91_WDT_BASE        0xFFFFFD40
 
-/* PMC registers */
-#define AT91_PMC_SR (0x68 / sizeof(uint32_t))
-#define AT91_PMC_MCKR (0x0020 / sizeof(uint32_t))
-#define AT91_PMC_MOR (0x30 / sizeof(uint32_t))
-#define AT91_PMC_CSS             (0x3 <<  0) // (PMC) Programmable Clock Selection
-#define AT91_PMC_MCKRDY          (0x1 <<  3) // (PMC) Master Clock Status/Enable/Disable/Mask
-#define AT91_PMC_MOSCS           (0x1 <<  0) // (PMC) MOSC Status/Enable/Disable/Mask
-#define AT91_CKGR_MOSCEN         (0x1 <<  0) // (CKGR) Main Oscillator Enable
-#define AT91_PMC_PLLAR (0x0028 / sizeof(uint32_t))
-#define AT91_PMC_PLLBR (0x002C / sizeof(uint32_t))
-#define AT91_PMC_LOCKA           (0x1 <<  1) // (PMC) PLL A Status/Enable/Disable/Mask
-#define AT91_PMC_LOCKB           (0x1 <<  2) // (PMC) PLL B Status/Enable/Disable/Mask
-#define AT91_PMC_PCER (0x10 / sizeof(uint32_t))
-
-/*dbgu registers */
-#define AT91_DBGU_CR   0x0
-#define AT91_DBGU_MR   (4 / sizeof(uint32_t))
-#define AT91_DBGU_IER  (8 / sizeof(uint32_t))
-#define AT91_DBGU_IDR  (0xC / sizeof(uint32_t))
-#define AT91_DBGU_IMR  (0x10 / sizeof(uint32_t))
-#define AT91_DBGU_SR   (0x14 / sizeof(uint32_t))
-#define AT91_DBGU_RHR  (0x18 / sizeof(uint32_t))
-#define AT91_DBGU_THR  (0x001C / sizeof(uint32_t))
-#define AT91_DBGU_BRGR (0x0020 / sizeof(uint32_t))
-
-
-// -------- DBGU_CR : (DBGU Offset: 0x0) Debug Unit Control Register --------
-#define AT91_US_RSTRX            (0x1 <<  2) // (DBGU) Reset Receiver
-#define AT91_US_RSTTX            (0x1 <<  3) // (DBGU) Reset Transmitter
-#define AT91_US_RXEN             (0x1 <<  4) // (DBGU) Receiver Enable
-#define AT91_US_RXDIS            (0x1 <<  5) // (DBGU) Receiver Disable
-#define AT91_US_TXEN             (0x1 <<  6) // (DBGU) Transmitter Enable
-#define AT91_US_TXDIS            (0x1 <<  7) // (DBGU) Transmitter Disable
-#define AT91_US_RSTSTA           (0x1 <<  8) // (DBGU) Reset Status Bits
-// -------- DBGU_IER : (DBGU Offset: 0x8) Debug Unit Interrupt Enable Register --------
-#define AT91_US_RXRDY            (0x1 <<  0) // (DBGU) RXRDY Interrupt
-#define AT91_US_TXRDY            (0x1 <<  1) // (DBGU) TXRDY Interrupt
-#define AT91_US_ENDRX            (0x1 <<  3) // (DBGU) End of Receive Transfer Interrupt
-#define AT91_US_ENDTX            (0x1 <<  4) // (DBGU) End of Transmit Interrupt
-#define AT91_US_OVRE             (0x1 <<  5) // (DBGU) Overrun Interrupt
-#define AT91_US_FRAME            (0x1 <<  6) // (DBGU) Framing Error Interrupt
-#define AT91_US_PARE             (0x1 <<  7) // (DBGU) Parity Error Interrupt
-#define AT91_US_TXEMPTY          (0x1 <<  9) // (DBGU) TXEMPTY Interrupt
-#define AT91_US_TXBUFE           (0x1 << 11) // (DBGU) TXBUFE Interrupt
-#define AT91_US_RXBUFF           (0x1 << 12) // (DBGU) RXBUFF Interrupt
-#define AT91_US_COMM_TX          (0x1 << 30) // (DBGU) COMM_TX Interrupt
-#define AT91_US_COMM_RX          (0x1 << 31) // (DBGU) COMM_RX Interrupt
-
-/* US registers */
-#define AT91_US_CR  (0)
-#define AT91_US_MR  (4 / sizeof(uint32_t))
-#define AT91_US_IER (8 / sizeof(uint32_t))
-#define AT91_US_IDR (0xC / sizeof(uint32_t))
-#define AT91_US_IMR (0x10 / sizeof(uint32_t))
-
+/*nand flash*/
+#define AT91_NAND_BASE       0x40000000
 /* matrix */
 
 // *****************************************************************************

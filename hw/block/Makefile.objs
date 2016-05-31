@@ -10,6 +10,6 @@ common-obj-$(CONFIG_ONENAND) += onenand.o
 common-obj-$(CONFIG_NVME_PCI) += nvme.o
 
 obj-$(CONFIG_SH4) += tc58128.o
-
+obj-$(CONFIG_AT91SAM9260) += at91_nand.o
 obj-$(CONFIG_VIRTIO) += virtio-blk.o
 obj-$(CONFIG_VIRTIO_BLK_DATA_PLANE) += dataplane/
