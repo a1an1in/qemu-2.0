@@ -131,7 +131,7 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
 	/*create at19 debug unit*/
     sysbus_create_varargs("at91sam9260_debug", AT91_DBGU_BASE, NULL);
 	/*create nand flash*/
-    //sysbus_create_varargs("nand", AT91_NAND_BASE, NULL);
+   sysbus_create_varargs("at91_nand", AT91_NAND_BASE, NULL);
 	return s;
 }
 
