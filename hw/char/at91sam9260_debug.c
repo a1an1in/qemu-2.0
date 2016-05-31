@@ -249,6 +249,15 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
 			s->regs.dbgu_thr = 0;
 			s->regs.dbgu_sr |= SR_TXRDY;
 		}
+		if (val & CR_RSTRX) {
+			s->regs.dbgu_cr |= CR_RXDIS;
+			s->regs.dbgu_rhr = 0;
+		}
+		if (val & CR_RSTTX) {
+			s->regs.dbgu_cr |= CR_TXDIS;
+			s->regs.dbgu_thr = 0;
+		}
+
 		s->regs.dbgu_cr |= val;
 		break;
 	case DBGU_MR:
@@ -269,6 +278,7 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
 		s->regs.dbgu_sr &= ~SR_TXRDY;
         if (s->chr)
             qemu_chr_fe_write(s->chr,(const uint8_t *)&s->regs.dbgu_thr, 1);
+        s->regs.dbgu_sr |= SR_TXRDY;
 		break;
 	case DBGU_BRGR:
 		s->regs.dbgu_brgr = val;
@@ -311,6 +321,7 @@ static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
 		s->regs.dbgu_rhr &= ~SR_RXRDY;
         if (s->chr)
             qemu_chr_accept_input(s->chr);
+        s->regs.dbgu_rhr |= SR_RXRDY;
 		break;
 	case DBGU_BRGR:
 		ret = s->regs.dbgu_brgr;

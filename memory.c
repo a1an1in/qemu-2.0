@@ -424,6 +424,9 @@ static void memory_region_oldmmio_write_accessor(MemoryRegion *mr,
     mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, tmp);
 }
 
+/**
+ * memory_region_write_accessor:写内存区域回调接口
+ */
 static void memory_region_write_accessor(MemoryRegion *mr,
                                          hwaddr addr,
                                          uint64_t *value,
