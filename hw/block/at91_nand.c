@@ -22,10 +22,10 @@ typedef struct at91_nand {
 #define AT91_NAND_SIZE 0x10000000
 
 /*nand pin signal*/
-#define CLE_EN 	1
+#define CLE_EN 	(1 << 22)
 #define CLE_DIS 0
 #define ALE_EN  (1 << 21)
-#define CE_EN   (1 << 22)
+#define CE_EN   1
 #define WP_EN   1
 #define WP_DIS  0
 #define GND_EN  1
@@ -34,17 +34,20 @@ typedef struct at91_nand {
 static uint64_t at91_read(void *opaque, hwaddr addr, unsigned size)
 {
 	at91_nand *s = (at91_nand *)opaque;
-
-	nand_setpins(s->nand, CLE_EN, ALE_EN, CE_EN, WP_EN, GND_EN);
-	return nand_getio(s->nand);;
+	//uint8_t ale_en = (addr & ALE_EN)? 1: 0;
+	//uint8_t cle_en = (addr & CLE_EN)? 1: 0;
+	//nand_setpins(s->nand, cle_en, ale_en, CE_EN, WP_EN, GND_EN);
+	return nand_getio(s->nand);
 }
 
 static void at91_write(void *opaque, hwaddr addr,
                      uint64_t value, unsigned size)
 {
 	at91_nand *s = (at91_nand *)opaque;
+	uint8_t ale_en = (addr & ALE_EN)? 1: 0;
+	uint8_t cle_en = (addr & CLE_EN)? 1: 0;
 
-	nand_setpins(s->nand, CLE_EN, ALE_EN, CE_EN, WP_EN, GND_EN);
+	nand_setpins(s->nand, cle_en, ale_en, CE_EN, WP_EN, GND_EN);
 	nand_setio(s->nand, value & 0xFF);
 }
 
