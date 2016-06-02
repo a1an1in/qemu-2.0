@@ -1,5 +1,9 @@
 /*
- *  at91sam9260x board simulator
+ *  at91sam9260ek board simulator
+ *
+ *   Copyright (C) 2016 yanl.
+ *   yanl, <yanl1229@163.com>
+ *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
  *  Free Software Foundation; either version 2 of the License, or

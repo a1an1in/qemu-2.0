@@ -1,5 +1,5 @@
 /*
- *  AT91SAM9260 debug Emulation
+ *  AT91SAM9260ek board debug Emulation
  *
  *  Copyright (C) 2016 yanl.
  *   yanl, <yanl1229@163.com>
@@ -318,10 +318,10 @@ static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
 			break;
 		ret = s->regs.dbgu_rhr;
 		s->regs.dbgu_rhr = 0;
-		s->regs.dbgu_rhr &= ~SR_RXRDY;
+		s->regs.dbgu_sr &= ~SR_RXRDY;
         if (s->chr)
             qemu_chr_accept_input(s->chr);
-        s->regs.dbgu_rhr |= SR_RXRDY;
+        //s->regs.dbgu_sr |= SR_RXRDY;
 		break;
 	case DBGU_BRGR:
 		ret = s->regs.dbgu_brgr;

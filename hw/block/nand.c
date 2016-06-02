@@ -456,6 +456,7 @@ static void nand_register_types(void)
  * outputs are R/B and eight I/O pins.
  *
  * CE, WP and R/B are active low.
+ * 低电平为有效信号
  */
 void nand_setpins(DeviceState *dev, uint8_t cle, uint8_t ale,
                   uint8_t ce, uint8_t wp, uint8_t gnd)

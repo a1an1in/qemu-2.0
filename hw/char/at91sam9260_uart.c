@@ -1,5 +1,5 @@
 /*
- *  AT91SAM9260 UART Emulation
+ *  AT91SAM9260ek board UART Emulation
  *
  *  Copyright (C) 2016 yanl.
  *   yanl, <yanl1229@163.com>
