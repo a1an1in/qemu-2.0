@@ -33,9 +33,6 @@ typedef struct at91_nand {
 static uint64_t at91_read(void *opaque, hwaddr addr, unsigned size)
 {
 	at91_nand *s = (at91_nand *)opaque;
-	//uint8_t ale_en = (addr & ALE_EN)? 1: 0;
-	//uint8_t cle_en = (addr & CLE_EN)? 1: 0;
-	//nand_setpins(s->nand, cle_en, ale_en, CE_EN, WP_EN, GND_EN);
 	return nand_getio(s->nand);
 }
 
