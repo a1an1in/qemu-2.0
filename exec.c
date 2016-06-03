@@ -402,6 +402,9 @@ address_space_translate_for_iotlb(AddressSpace *as, hwaddr addr, hwaddr *xlat,
 }
 #endif
 
+/**
+ * cpu_exec_init_all:初始化系统内存结构与设备I/o内存
+ */
 void cpu_exec_init_all(void)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -1881,6 +1884,9 @@ void address_space_destroy_dispatch(AddressSpace *as)
     as->dispatch = NULL;
 }
 
+/**
+ * memory_map_init:系统内存空间的初始化
+*/
 static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));

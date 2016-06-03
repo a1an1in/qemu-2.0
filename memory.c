@@ -831,10 +831,11 @@ static void memory_region_destructor_rom_device(MemoryRegion *mr)
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
 }
 
-void memory_region_init(MemoryRegion *mr,
-                        Object *owner,
-                        const char *name,
-                        uint64_t size)
+/**
+ * memory_region_init: init mr strcut
+ */
+void memory_region_init(MemoryRegion *mr, Object *owner, const char *name,
+		uint64_t size)
 {
     mr->ops = &unassigned_mem_ops;
     mr->opaque = NULL;
@@ -1461,6 +1462,7 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
                other->name);
 #endif
     }
+	/*subregion子区插入到mr的subregions链表中*/
     QTAILQ_FOREACH(other, &mr->subregions, subregions_link) {
         if (subregion->priority >= other->priority) {
             QTAILQ_INSERT_BEFORE(other, subregion, subregions_link);
@@ -1762,6 +1764,9 @@ bool io_mem_read(MemoryRegion *mr, hwaddr addr, uint64_t *pval, unsigned size)
     return memory_region_dispatch_read(mr, addr, pval, size);
 }
 
+/**
+ * io_mem_write: write io device address space
+*/
 bool io_mem_write(MemoryRegion *mr, hwaddr addr,
                   uint64_t val, unsigned size)
 {
