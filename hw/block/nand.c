@@ -110,14 +110,22 @@ static void mem_and(uint8_t *dest, const uint8_t *src, size_t n)
 
 # define NAND_IO
 
+/*计算出addr的行地址*/
 # define PAGE(addr)		((addr) >> ADDR_SHIFT)
-# define PAGE_START(page)	(PAGE(page) * (PAGE_SIZE + OOB_SIZE))
+/*PAGE_START:代表块中第一个页的地址*/
+# define PAGE_START(addr)	(PAGE(addr) * (PAGE_SIZE + OOB_SIZE))
 # define PAGE_MASK		((1 << ADDR_SHIFT) - 1)
 # define OOB_SHIFT		(PAGE_SHIFT - 5)
 # define OOB_SIZE		(1 << OOB_SHIFT)
 # define SECTOR(addr)		((addr) >> (9 + ADDR_SHIFT - PAGE_SHIFT))
 # define SECTOR_OFFSET(addr)	((addr) & ((511 >> PAGE_SHIFT) << 8))
 
+/**
+ * PAGE_SIZE:表示页大小
+ * PAGE_SHIFT:页大小对应的移位数
+ * PAGE_SECTORS:一个页中扇区的个数
+ * ADDR_SHIFT:为了计算出行地址,需要移动的位数
+*/
 # define PAGE_SIZE		256
 # define PAGE_SHIFT		8
 # define PAGE_SECTORS		1
@@ -135,13 +143,14 @@ static void mem_and(uint8_t *dest, const uint8_t *src, size_t n)
 # include "nand.c"
 
 /* Information based on Linux drivers/mtd/nand/nand_ids.c */
-static const struct {
+struct nand_flash_id{
     int size;
     int width;
     int page_shift;
     int erase_shift;
     uint32_t options;
-} nand_flash_ids[0x100] = {
+};
+static struct nand_flash_id nand_flash_ids[0x100] = {
     [0 ... 0xff] = { 0 },
 
     [0x6e] = { 1,	8,	8, 4, 0 },
@@ -415,6 +424,7 @@ static void nand_realize(DeviceState *dev, Error **errp)
     } else {
         pagesize += 1 << s->page_shift;
     }
+	/*为存储设备分配存储空间*/
     if (pagesize) {
         s->storage = (uint8_t *) memset(g_malloc(s->pages * pagesize),
                         0xff, s->pages * pagesize);
@@ -601,6 +611,7 @@ uint32_t nand_getio(DeviceState *dev)
         s->offset = 0;
 
         s->blk_load(s, s->addr, offset);
+		/*是否需要读取spare区信息, gnd = 0,表示要读取*/
         if (s->gnd)
             s->iolen = (1 << s->page_shift) - offset;
         else
@@ -631,20 +642,28 @@ uint32_t nand_getbuswidth(DeviceState *dev)
     return s->buswidth << 3;
 }
 
+static struct nand_flash_id *nand_getchip(int manf_id, int chip_id)
+{
+    if (nand_flash_ids[chip_id].size == 0) {
+        hw_error("%s: Unsupported NAND chip ID.\n", __FUNCTION__);
+		return NULL;
+    }else
+		return &nand_flash_ids[chip_id];
+}
+
 DeviceState *nand_init(BlockDriverState *bdrv, int manf_id, int chip_id)
 {
     DeviceState *dev;
+	
+	if (!nand_getchip(manf_id, chip_id))
+		return NULL;
 
-    if (nand_flash_ids[chip_id].size == 0) {
-        hw_error("%s: Unsupported NAND chip ID.\n", __FUNCTION__);
-    }
     dev = DEVICE(object_new(TYPE_NAND));
     qdev_prop_set_uint8(dev, "manufacturer_id", manf_id);
     qdev_prop_set_uint8(dev, "chip_id", chip_id);
     if (bdrv) {
         qdev_prop_set_drive_nofail(dev, "drive", bdrv);
     }
-
     qdev_init_nofail(dev);
     return dev;
 }
@@ -685,6 +704,11 @@ static void glue(nand_blk_write_, PAGE_SIZE)(NANDFlashState *s)
         }
     } else {
         off = PAGE_START(s->addr) + (s->addr & PAGE_MASK) + s->offset;
+		/**
+		 * 默认设置:扇区的大小为512字节
+		 * sector:扇区号
+		 * soff:扇区内偏移
+		*/
         sector = off >> 9;
         soff = off & 0x1ff;
         if (bdrv_read(s->bdrv, sector, iobuf, PAGE_SECTORS + 2) < 0) {
