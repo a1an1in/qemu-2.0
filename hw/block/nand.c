@@ -118,6 +118,7 @@ static void mem_and(uint8_t *dest, const uint8_t *src, size_t n)
 # define OOB_SHIFT		(PAGE_SHIFT - 5)
 # define OOB_SIZE		(1 << OOB_SHIFT)
 # define SECTOR(addr)		((addr) >> (9 + ADDR_SHIFT - PAGE_SHIFT))
+/*如果页的大小超过512字节,则扇区偏移量都为0*/
 # define SECTOR_OFFSET(addr)	((addr) & ((511 >> PAGE_SHIFT) << 8))
 
 /**

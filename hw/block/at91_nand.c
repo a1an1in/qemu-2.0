@@ -38,14 +38,15 @@ static void at91_write(void *opaque, hwaddr addr,
 	at91_nand *s = (at91_nand *)opaque;
 	uint8_t ale_en = (addr & CLE_SHIFT)? 1: 0;
 	uint8_t cle_en = (addr & CLE_SHIFT)? 1: 0;
+#if 0
 	uint8_t gnd_en = 1;
-
 	if ((value &0xff) == 0x50)
 		gnd_en = 0;
 	else
 		gnd_en = 1;
+#endif
 
-	nand_setpins(s->nand, cle_en, ale_en, CE_EN, 0, gnd_en);
+	nand_setpins(s->nand, cle_en, ale_en, CE_EN, 0, 0);
 	nand_setio(s->nand, value & 0xFF);
 }
 
