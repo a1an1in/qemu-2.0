@@ -64,17 +64,18 @@ struct NANDFlashState {
     BlockDriverState *bdrv;
     int mem_oob;
 
+	/*program & erase control signal*/
     uint8_t cle, ale, ce, wp, gnd;
 
     uint8_t io[MAX_PAGE + MAX_OOB + 0x400];
-    uint8_t *ioaddr;
-    int iolen;
+    uint8_t *ioaddr;   /*io pointer*/
+    int iolen;         /*input data len*/
 
     uint32_t cmd;
     uint64_t addr;
-    int addrlen;
+    int addrlen; /*address cycles*/
     int status;
-    int offset;
+    int offset;  /*colum offset*/
 
     void (*blk_write)(NANDFlashState *s);
     void (*blk_erase)(NANDFlashState *s);
@@ -485,6 +486,7 @@ void nand_setio(DeviceState *dev, uint32_t value)
     int i;
     NANDFlashState *s = NAND(dev);
 
+	/*send command*/
     if (!s->ce && s->cle) {
         if (nand_flash_ids[s->chip_id].options & NAND_SAMSUNG_LP) {
             if (s->cmd == NAND_CMD_READ0 && value == NAND_CMD_LPREAD2)
@@ -522,6 +524,7 @@ void nand_setio(DeviceState *dev, uint32_t value)
         }
     }
 
+	/*send address*/
     if (s->ale) {
         unsigned int shift = s->addrlen * 8;
         unsigned int mask = ~(0xff << shift);
@@ -567,7 +570,9 @@ void nand_setio(DeviceState *dev, uint32_t value)
         }
     }
 
+	/*input data step1*/
     if (!s->cle && !s->ale && s->cmd == NAND_CMD_PAGEPROGRAM1) {
+		/*write a page*/
         if (s->iolen < (1 << s->page_shift) + (1 << s->oob_shift)) {
             for (i = s->buswidth; i--; value >>= 8) {
                 s->io[s->iolen ++] = (uint8_t) (value & 0xff);

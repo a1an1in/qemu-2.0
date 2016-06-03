@@ -25,10 +25,6 @@ typedef struct at91_nand {
 #define CLE_SHIFT 	(1 << 22)
 #define ALE_SHIFT   (1 << 21)
 #define CE_EN   0
-#define WP_EN   1
-#define WP_DIS  0
-#define GND_EN  0
-#define GND_DIS 1
 
 static uint64_t at91_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -45,8 +41,14 @@ static void at91_write(void *opaque, hwaddr addr,
 	at91_nand *s = (at91_nand *)opaque;
 	uint8_t ale_en = (addr & CLE_SHIFT)? 1: 0;
 	uint8_t cle_en = (addr & CLE_SHIFT)? 1: 0;
+	uint8_t gnd_en = 1;
 
-	nand_setpins(s->nand, cle_en, ale_en, CE_EN, WP_DIS, GND_EN);
+	if ((value &0xff) == 0x50)
+		gnd_en = 0;
+	else
+		gnd_en = 1;
+
+	nand_setpins(s->nand, cle_en, ale_en, CE_EN, 0, gnd_en);
 	nand_setio(s->nand, value & 0xFF);
 }
 
