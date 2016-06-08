@@ -74,8 +74,8 @@ typedef struct AT91AICState {
     MemoryRegion iomem;
 	/*current interrupt level irq and priority*/
     uint32_t level;
-    int irq;
-    int priority;
+    uint32_t cur_irq;
+    uint32_t priority;
     qemu_irq irq;
     qemu_irq fiq;
 	AT91AICStack stack[AT91AIC_NUM_PRIO];
@@ -88,114 +88,33 @@ static const unsigned char at91aic_id[] =
 
 static inline uint32_t at91aic_irq_level(AT91AICState *s)
 {
-    return (s->level | s->soft_level) & s->irq_enable & ~s->fiq_select;
+    return 0;
 }
 
 /* Update interrupts.  */
 static void at91aic_update(AT91AICState *s)
 {
-    uint32_t level = at91aic_irq_level(s);
     int set;
-
-    set = (level & s->prio_mask[s->priority]) != 0;
+    set = 0;
     qemu_set_irq(s->irq, set);
-    set = ((s->level | s->soft_level) & s->fiq_select) != 0;
+    set = 0;
     qemu_set_irq(s->fiq, set);
 }
 
 static void at91aic_set_irq(void *opaque, int irq, int level)
 {
-    AT91AICState *s = (AT91AICState *)opaque;
-
-    if (level)
-        s->level |= 1u << irq;
-    else
-        s->level &= ~(1u << irq);
-    at91aic_update(s);
+    //at91aic_update(s);
 }
 
 static void at91aic_update_vectors(AT91AICState *s)
 {
-    uint32_t mask;
-    int i;
-    int n;
-
-    mask = 0;
-    for (i = 0; i < 16; i++)
-      {
-        s->prio_mask[i] = mask;
-        if (s->vect_control[i] & 0x20)
-          {
-            n = s->vect_control[i] & 0x1f;
-            mask |= 1 << n;
-          }
-      }
-    s->prio_mask[16] = mask;
     at91aic_update(s);
 }
 
 static uint64_t at91aic_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    AT91AICState *s = (AT91AICState *)opaque;
-    int i;
-
-    if (offset >= 0xfe0 && offset < 0x1000) {
-        return at91aic_id[(offset - 0xfe0) >> 2];
-    }
-    if (offset >= 0x100 && offset < 0x140) {
-        return s->vect_addr[(offset - 0x100) >> 2];
-    }
-    if (offset >= 0x200 && offset < 0x240) {
-        return s->vect_control[(offset - 0x200) >> 2];
-    }
-    switch (offset >> 2) {
-    case 0: /* IRQSTATUS */
-        return at91aic_irq_level(s);
-    case 1: /* FIQSATUS */
-        return (s->level | s->soft_level) & s->fiq_select;
-    case 2: /* RAWINTR */
-        return s->level | s->soft_level;
-    case 3: /* INTSELECT */
-        return s->fiq_select;
-    case 4: /* INTENABLE */
-        return s->irq_enable;
-    case 6: /* SOFTINT */
-        return s->soft_level;
-    case 8: /* PROTECTION */
-        return s->protected;
-    case 12: /* VECTADDR */
-        /* Read vector address at the start of an ISR.  Increases the
-         * current priority level to that of the current interrupt.
-         *
-         * Since an enabled interrupt X at priority P causes prio_mask[Y]
-         * to have bit X set for all Y > P, this loop will stop with
-         * i == the priority of the highest priority set interrupt.
-         */
-        for (i = 0; i < s->priority; i++) {
-            if ((s->level | s->soft_level) & s->prio_mask[i + 1]) {
-                break;
-            }
-        }
-
-        /* Reading this value with no pending interrupts is undefined.
-           We return the default address.  */
-        if (i == AT91AIC_NUM_PRIO)
-          return s->vect_addr[16];
-        if (i < s->priority)
-          {
-            s->prev_prio[i] = s->priority;
-            s->priority = i;
-            at91aic_update(s);
-          }
-        return s->vect_addr[s->priority];
-    case 13: /* DEFVECTADDR */
-        return s->vect_addr[16];
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "at91aic_read: Bad offset %x\n", (int)offset);
-        return 0;
-    }
+	return 0;
 }
 
 static void at91aic_write(void *opaque, hwaddr offset,
@@ -203,59 +122,6 @@ static void at91aic_write(void *opaque, hwaddr offset,
 {
     AT91AICState *s = (AT91AICState *)opaque;
 
-    if (offset >= 0x100 && offset < 0x140) {
-        s->vect_addr[(offset - 0x100) >> 2] = val;
-        at91aic_update_vectors(s);
-        return;
-    }
-    if (offset >= 0x200 && offset < 0x240) {
-        s->vect_control[(offset - 0x200) >> 2] = val;
-        at91aic_update_vectors(s);
-        return;
-    }
-    switch (offset >> 2) {
-    case 0: /* SELECT */
-        /* This is a readonly register, but linux tries to write to it
-           anyway.  Ignore the write.  */
-        break;
-    case 3: /* INTSELECT */
-        s->fiq_select = val;
-        break;
-    case 4: /* INTENABLE */
-        s->irq_enable |= val;
-        break;
-    case 5: /* INTENCLEAR */
-        s->irq_enable &= ~val;
-        break;
-    case 6: /* SOFTINT */
-        s->soft_level |= val;
-        break;
-    case 7: /* SOFTINTCLEAR */
-        s->soft_level &= ~val;
-        break;
-    case 8: /* PROTECTION */
-        /* TODO: Protection (supervisor only access) is not implemented.  */
-        s->protected = val & 1;
-        break;
-    case 12: /* VECTADDR */
-        /* Restore the previous priority level.  The value written is
-           ignored.  */
-        if (s->priority < AT91AIC_NUM_PRIO)
-            s->priority = s->prev_prio[s->priority];
-        break;
-    case 13: /* DEFVECTADDR */
-        s->vect_addr[16] = val;
-        break;
-    case 0xc0: /* ITCR */
-        if (val) {
-            qemu_log_mask(LOG_UNIMP, "pl190: Test mode not implemented\n");
-        }
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                     "at91aic_write: Bad offset %x\n", (int)offset);
-        return;
-    }
     at91aic_update(s);
 }
 
@@ -268,15 +134,6 @@ static const MemoryRegionOps at91aic_ops = {
 static void at91aic_reset(DeviceState *d)
 {
     AT91AICState *s = AT91_AIC(d);
-    int i;
-
-    for (i = 0; i < 16; i++) {
-        s->vect_addr[i] = 0;
-        s->vect_control[i] = 0;
-    }
-    s->vect_addr[16] = 0;
-    s->prio_mask[17] = 0xffffffff;
-    s->priority = AT91AIC_NUM_PRIO;
     at91aic_update_vectors(s);
 }
 
@@ -325,8 +182,8 @@ static const VMStateDescription vmstate_at91_aic = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(level, AT91AICState),
-        VMSTATE_UINT32(irq, AT91AICState),
-        VMSTATE_INT32(priority, AT91AICState),
+        VMSTATE_UINT32(cur_irq, AT91AICState),
+        VMSTATE_UINT32(priority, AT91AICState),
         VMSTATE_STRUCT_POINTER(regs, AT91AICState, 
                           vmstate_at91_regs, AT91AICRegs),
         VMSTATE_END_OF_LIST()
