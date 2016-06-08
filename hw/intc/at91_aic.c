@@ -8,11 +8,62 @@
 
 #include "hw/sysbus.h"
 
-/* The number of virtual priority levels.  16 user vectors plus the
-   unvectored IRQ.  Chained interrupts would require an additional level
-   if implemented.  */
+typedef struct AT91AICStack {
+	uint16_t level;
+	uint16_t irq;
+	struct At91AICStack *next;
+}AT91AICStack;
 
-#define AT91AIC_NUM_PRIO 17
+#define AT91AIC_SMR 32
+#define AT91AIC_SVR 32
+
+/*advanced interrupt register offset define*/
+#define AT91AIC_SMRSTART	0x00
+#define AT91AIC_SMREND		0x7C
+#define AT91AIC_SVRSTART	0x80
+#define AT91AIC_SVREND		0xFC
+#define AT91AIC_IVR			0x100
+#define AT91AIC_FVR			0x104
+#define AT91AIC_ISR			0x108
+#define AT91AIC_IPR			0x10C
+#define AT91AIC_IMR			0x110
+#define AT91AIC_CISR		0x114
+/*reserved 0x11C*/
+#define AT91AIC_IECR		0x120
+#define AT91AIC_IDCR		0x124
+#define AT91AIC_ICCR		0x128
+#define AT91AIC_ISCR		0x12C
+#define AT91AIC_EOICR		0x130
+#define AT91AIC_SPU			0x134
+#define AT91AIC_DCR			0x138
+/*reserved 0x13c*/
+#define AT91AIC_FFER		0x140
+#define AT91AIC_FFDR		0x144
+#define AT91AIC_FFSR		0x14C
+#define AT91AIC_REGMAX		0x14C
+
+typedef struct AT91AICRegs {
+	uint32_t smr[AT91AIC_SMR];	
+	uint32_t svr[AT91AIC_SVR];	
+	uint32_t ivr;
+	uint32_t fvr;
+	uint32_t isr;
+	uint32_t ipr;
+	uint32_t imr;
+	uint32_t cisr;
+	uint32_t iecr;
+	uint32_t idcr;
+	uint32_t iccr;
+	uint32_t iscr;
+	uint32_t eoicr;
+	uint32_t spu;
+	uint32_t dcr;
+	uint32_t ffer;
+	uint32_t ffdr;
+	uint32_t ffsr;
+}AT91AICRegs;
+
+#define AT91AIC_NUM_PRIO 8 
 
 #define TYPE_AT91AIC "at91_aic"
 #define AT91_AIC(obj) OBJECT_CHECK(AT91AICState, (obj), TYPE_AT91AIC)
@@ -21,20 +72,15 @@ typedef struct AT91AICState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+	/*current interrupt level irq and priority*/
     uint32_t level;
-    uint32_t soft_level;
-    uint32_t irq_enable;
-    uint32_t fiq_select;
-    uint8_t vect_control[16];
-    uint32_t vect_addr[AT91AIC_NUM_PRIO];
-    /* Mask containing interrupts with higher priority than this one.  */
-    uint32_t prio_mask[AT91AIC_NUM_PRIO + 1];
-    int protected;
-    /* Current priority level.  */
+    int irq;
     int priority;
-    int prev_prio[AT91AIC_NUM_PRIO];
     qemu_irq irq;
     qemu_irq fiq;
+	AT91AICStack stack[AT91AIC_NUM_PRIO];
+	/*aic control registers*/
+	AT91AICRegs *regs;
 } AT91AICState;
 
 static const unsigned char at91aic_id[] =
@@ -247,21 +293,42 @@ static int at91aic_init(SysBusDevice *sbd)
     return 0;
 }
 
+static const VMStateDescription vmstate_at91_regs = {
+    .name = "at91_aic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(ivr, AT91AICRegs),
+        VMSTATE_UINT32(fvr, AT91AICRegs),
+        VMSTATE_UINT32(isr, AT91AICRegs),
+        VMSTATE_UINT32(ipr, AT91AICRegs),
+        VMSTATE_UINT32(imr, AT91AICRegs),
+        VMSTATE_UINT32(cisr, AT91AICRegs),
+        VMSTATE_UINT32(iecr, AT91AICRegs),
+        VMSTATE_UINT32(idcr, AT91AICRegs),
+        VMSTATE_UINT32(iccr, AT91AICRegs),
+        VMSTATE_UINT32(iscr, AT91AICRegs),
+        VMSTATE_UINT32(eoicr, AT91AICRegs),
+        VMSTATE_UINT32(spu, AT91AICRegs),
+        VMSTATE_UINT32(dcr, AT91AICRegs),
+        VMSTATE_UINT32(ffer, AT91AICRegs),
+        VMSTATE_UINT32(ffdr, AT91AICRegs),
+        VMSTATE_UINT32(ffsr, AT91AICRegs),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_at91_aic = {
     .name = "at91_aic",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(level, AT91AICState),
-        VMSTATE_UINT32(soft_level, AT91AICState),
-        VMSTATE_UINT32(irq_enable, AT91AICState),
-        VMSTATE_UINT32(fiq_select, AT91AICState),
-        VMSTATE_UINT8_ARRAY(vect_control, AT91AICState, 16),
-        VMSTATE_UINT32_ARRAY(vect_addr, AT91AICState, AT91AIC_NUM_PRIO),
-        VMSTATE_UINT32_ARRAY(prio_mask, AT91AICState, AT91AIC_NUM_PRIO+1),
-        VMSTATE_INT32(protected, AT91AICState),
+        VMSTATE_UINT32(irq, AT91AICState),
         VMSTATE_INT32(priority, AT91AICState),
-        VMSTATE_INT32_ARRAY(prev_prio, AT91AICState, AT91AIC_NUM_PRIO),
+        VMSTATE_STRUCT_POINTER(regs, AT91AICState, 
+                          vmstate_at91_regs, AT91AICRegs),
         VMSTATE_END_OF_LIST()
     }
 };
