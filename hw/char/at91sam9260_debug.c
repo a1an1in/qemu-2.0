@@ -405,8 +405,7 @@ static const VMStateDescription vmstate_at91sam9260debug_regs = {
         VMSTATE_END_OF_LIST()
     }
 };
-static const VMStateDescription vmstate_at91sam9260debug = {
-    .name = "at91sam9260_debug",
+static const VMStateDescription vmstate_at91sam9260debug = { .name = "at91sam9260_debug",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
