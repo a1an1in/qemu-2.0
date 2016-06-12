@@ -84,9 +84,6 @@ typedef struct AT91AICState {
 	AT91AICRegs *regs;
 } AT91AICState;
 
-static const unsigned char at91aic_id[] =
-{ 0x90, 0x11, 0x04, 0x00, 0x0D, 0xf0, 0x05, 0xb1 };
-
 
 static void push_irq(AT91AICState *s, int irq, int level)
 {
@@ -105,6 +102,40 @@ static void at91aic_update(AT91AICState *s, int level)
     qemu_set_irq(s->fiq, level);
 }
 
+static int at91aic_updatestack(AT91AICState *s, int irq, int level, AT91AICStack *sp)
+{
+	int pending = -1;
+	uint32_t p_irq = s->regs->smr[irq] & 7;
+	uint32_t p_sp = s->regs->smr[sp->irq] & 7;
+	if (p_irq > p_sp) {
+		push_irq(s, sp->irq, sp->level);
+		pending = irq;
+	} else if (p_irq < p_sp) {
+		push_irq(s, irq, level);
+		pending = sp->irq;
+	} else {
+		if (irq < sp->irq) {
+			push_irq(s, sp->irq, sp->level);
+			pending = irq;
+		} else if (irq > sp->irq) {
+			push_irq(s, irq, level);
+			pending = sp->irq;
+		}
+	}
+	return pending;
+}
+
+static void at91aic_updateirq(AT91AICState *s, int pending)
+{
+	s->regs->ipr |= pending;
+	if (pending == 0 && s->regs->svr[0])
+		s->regs->fvr = s->regs->svr[0];
+	else if (s->regs->svr[pending] && !(s->regs->ffsr & (1 << pending)))
+		s->regs->ivr = s->regs->svr[pending];
+	else if (s->regs->svr[pending] && (s->regs->ffsr & (1 << pending)))
+		s->regs->fvr = s->regs->svr[pending];
+}
+
 static void at91aic_set_irq(void *opaque, int irq, int level)
 {
 	AT91AICState *s = (AT91AICState *)opaque;
@@ -113,34 +144,9 @@ static void at91aic_set_irq(void *opaque, int irq, int level)
 	//uint32_t imr = s->regs->imr;
 	if (!s->regs->ipr) 
 		pending = irq;
-	else {
-		uint32_t p_irq = s->regs->smr[irq] & 7;
-		uint32_t p_sp = s->regs->smr[sp->irq] & 7;
-		if (p_irq > p_sp) {
-			push_irq(s, sp->irq, sp->level);
-			pending = irq;
-		} else if (p_irq < p_sp) {
-			push_irq(s, irq, level);
-			pending = sp->irq;
-		} else {
-			if (irq < sp->irq) {
-				push_irq(s, sp->irq, sp->level);
-				pending = irq;
-			} else if (irq > sp->irq) {
-				push_irq(s, irq, level);
-				pending = sp->irq;
-			}
-		}
-	}
-
-	s->regs->ipr |= pending;
-	if (pending == 0 && s->regs->svr[0])
-		s->regs->fvr = s->regs->svr[0];
-	else if (s->regs->svr[pending] && !(s->regs->ffsr & (1 << pending)))
-		s->regs->ivr = s->regs->svr[pending];
-	else if (s->regs->svr[pending] && (s->regs->ffsr & (1 << pending)))
-		s->regs->fvr = s->regs->svr[pending];
-
+	else 
+		pending = at91aic_updatestack(s,irq, level, sp);
+	at91aic_updateirq(s, pending);
     at91aic_update(s, level);
 }
 
@@ -218,7 +224,7 @@ static uint64_t at91aic_read(void *opaque, hwaddr offset,
 	return ret;
 }
 
-static void at91aic_setirq(AT91AICState *s)
+static void at91aic_cmd_setirq(AT91AICState *s)
 {
 	uint32_t type, clrcmd = s->regs->iccr;
 	int32_t irq = get_irqnum(clrcmd);
@@ -232,7 +238,7 @@ static void at91aic_setirq(AT91AICState *s)
 		s->regs->ipr &= ~irq;
 }
 
-static void at91aic_clearirq(AT91AICState *s)
+static void at91aic_cmd_clearirq(AT91AICState *s)
 {
 	uint32_t clrcmd = s->regs->iccr;
 	uint32_t type, ipr = s->regs->ipr;
@@ -254,6 +260,7 @@ static void at91aic_write(void *opaque, hwaddr offset,
 {
 	int off = 0;
     AT91AICState *s = (AT91AICState *)opaque;
+	AT91AICStack *sp1, *sp2;
 
 	off = offset & AT91AIC_REGMASK; 
 	if ((off >= AT91AIC_SMRSTART) && (off <= AT91AIC_SMREND)) {
@@ -273,15 +280,21 @@ static void at91aic_write(void *opaque, hwaddr offset,
 			break;
 		case AT91AIC_ICCR:
 			s->regs->iccr |= val;
-			at91aic_clearirq(s);
+			at91aic_cmd_clearirq(s);
 			break;
 		case AT91AIC_ISCR:
 			s->regs->iscr |= val;
-			at91aic_setirq(s);
+			at91aic_cmd_setirq(s);
 			break;
-		case AT91AIC_EOICR:
+		case AT91AIC_EOICR: {
+			int pending = -1;
 			s->regs->eoicr |= val;
-			pop_irq(s);
+			sp1 = pop_irq(s);
+			sp2 = pop_irq(s);
+			pending = at91aic_updatestack(s, sp2->irq, sp2->level, sp1);
+			at91aic_updateirq(s, pending);
+			at91aic_update(s, 0);
+		}
 			break;
 		case AT91AIC_SPU:
 			s->regs->spu = val;
