@@ -1,0 +1,1 @@
+common-obj-$(CONFIG_AT91SAM9260) += at91_pmc.o 

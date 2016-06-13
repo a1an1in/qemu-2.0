@@ -24,6 +24,7 @@ devices-dirs-$(CONFIG_SOFTMMU) += scsi/
 devices-dirs-$(CONFIG_SOFTMMU) += sd/
 devices-dirs-$(CONFIG_SOFTMMU) += ssi/
 devices-dirs-$(CONFIG_SOFTMMU) += timer/
+devices-dirs-$(CONFIG_SOFTMMU) += clock/
 devices-dirs-$(CONFIG_TPM) += tpm/
 devices-dirs-$(CONFIG_SOFTMMU) += usb/
 devices-dirs-$(CONFIG_VIRTIO) += virtio/
