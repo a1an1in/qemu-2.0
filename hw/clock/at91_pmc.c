@@ -58,6 +58,15 @@
 #define AT91_PMC_REGS_SIZE 0xFC 
 #define AT91_PMC_MASK 0xFF 
 
+/*ckgr_mor register field define*/
+#define MOSCEN	(1 << 0)
+
+/*pmc sr register field define*/
+#define SR_MOSCS (1 << 0)
+
+/*pmc ier regiser field define*/
+#define IER_MOSCS  (1 << 0)
+
 typedef struct AT91PMCRegs {
 	uint32_t pmc_scer;
 	uint32_t pmc_scdr;
@@ -125,6 +134,8 @@ static uint64_t at91_pmc_read(void *opaque, hwaddr offset, unsigned size)
 static void at91_pmc_write(void *opaque, hwaddr offset, uint64_t val, 
 		unsigned size)
 {
+	AT91PMCState *s = (AT91PMCState *)opaque;
+
 	switch (offset & AT91_PMC_MASK) {
 	case PMC_SCER:
 		break;
@@ -139,6 +150,13 @@ static void at91_pmc_write(void *opaque, hwaddr offset, uint64_t val,
 	case PMC_IDR:
 		break;
 	case CKGR_MOR:
+		s->regs.ckgr_mor |= val;
+		if (val & MOSCEN) 
+			s->regs.pmc_sr |= SR_MOSCS; 
+		/*if (s->regs.pmc_ier & IER_MOSCS)
+			; assert interrupt line
+		*/
+
 		break;
 	case CKGR_PLLAR:
 		break;
