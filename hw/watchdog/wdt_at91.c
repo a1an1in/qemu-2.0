@@ -57,17 +57,6 @@ typedef struct AT91WDTstate {
 } AT91WDTState;
 
 
-/* This is called when the watchdog expires. */
-static void at91_timer_expired(void *vp)
-{
-    AT91WDTState *s = vp;
-
-    at91_debug("watchdog expired\n");
-
-    watchdog_perform_action();
-    timer_del(s->timer);
-}
-
 static uint32_t readl_reg(AT91WDTState *s, hwaddr offset)
 {
 	return s->regs[offset];	
@@ -76,6 +65,17 @@ static uint32_t readl_reg(AT91WDTState *s, hwaddr offset)
 static void writel_reg(AT91WDTState *s, hwaddr offset, uint32_t value)
 {
 	s->regs[offset] = value;	
+}
+
+/* This is called when the watchdog expires. */
+static void at91_timer_expired(void *vp)
+{
+    AT91WDTState *s = vp;
+
+    at91_debug("watchdog expired\n");
+	writel_reg(s, WDT_SR, 1);
+    watchdog_perform_action();
+    timer_del(s->timer);
 }
 
 
@@ -101,10 +101,11 @@ static void wdt_at91_update(AT91WDTState *s)
 
 static void wdt_at91_restart(AT91WDTState *s)
 {
-	memset(&s->regs, 0, WDT_AT91_REGS_SIZE);
-    at91_debug("watchdog init\n");
-    timer_del(s->timer);
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, at91_timer_expired, s);
+    int64_t timeout, wdv = readl_reg(s, WDT_MR) & 0xFFF;
+    timeout = (int64_t) wdv * get_ticks_per_sec();
+    timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + timeout);
+	writel_reg(s, WDT_SR, 0);
+    at91_debug("watchdog restart\n");
 }
 
 static uint64_t wdt_at91_read(void *opaque, hwaddr offset, unsigned size)
@@ -132,13 +133,17 @@ static void wdt_at91_write(void *opaque, hwaddr offset, uint64_t val,
 {
 	uint32_t key = WDT_KEY << 24;
 	AT91WDTState *s = (AT91WDTState *)opaque;
+	uint32_t wdd = (readl_reg(s, WDT_MR) >> 16)&0xFFF;
+	uint32_t wdv = readl_reg(s, WDT_MR) &0xFFF;
 
 	switch(offset &0xFF) {
 	case WDT_CR:
 		if (key == (val & 0xFF000000)) {
 			writel_reg(s, WDT_CR, val&1);		
-			if (val & 1) 
+			if ((val & 1) && wdd >= wdv) 
 				wdt_at91_restart(s);
+			else if ((val &1) && wdd < wdv)
+				writel_reg(s, WDT_SR, 1<< 2);
 		}
 		break;
 	case WDT_MR:
@@ -179,14 +184,17 @@ static void wdt_at91_init(Object *obj)
 
    // sysbus_init_irq(dev, &s->irq);
 	memset(&s->regs, 0, WDT_AT91_REGS_SIZE);
+	writel_reg(s, WDT_MR, 0xFFF);
     at91_debug("watchdog init\n");
-    timer_del(s->timer);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, at91_timer_expired, s);
+    //timer_del(s->timer);
 }
 
 static void wdt_at91_reset(DeviceState *dev)
 {
     AT91WDTState *s = WDT_AT91(dev);
 	memset(&s->regs, 0, WDT_AT91_REGS_SIZE);
+	writel_reg(s, WDT_MR, 0xFFF);
     at91_debug("watchdog reset\n");
     timer_del(s->timer);
 }

@@ -86,7 +86,7 @@
 
 #define AT91SAM9260_DEBUG_REGS_MEM_SIZE    0x128
 
-typedef struct at91sam9260_debug_regs {
+typedef struct AT91DebugState_regs {
 	uint32_t dbgu_cr;
 	uint32_t dbgu_mr;
 	uint32_t dbgu_ier;
@@ -98,7 +98,7 @@ typedef struct at91sam9260_debug_regs {
 	uint32_t dbgu_brgr;
 	uint32_t dbgu_cidr;
 	uint32_t dbgu_exid;
-} at91sam9260_debug_regs;
+} AT91DebugState_regs;
 
 
 /*DBGU_CR register fields*/
@@ -157,25 +157,25 @@ enum debug_parity {
 	PAR_ODD,
 };
 
-typedef struct at91sam9260_debug {
+typedef struct AT91DebugState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
-	at91sam9260_debug_regs regs;
+	AT91DebugState_regs regs;
     CharDriverState  *chr;
     qemu_irq irq;
-} at91sam9260_debug;
+} AT91DebugState;
 
-#define TYPE_AT91SAM9260_DEBUG "at91sam9260_debug"
+#define TYPE_AT91SAM9260_DEBUG "at91_debug"
 
 #define AT91SAM9260_DEBUG(obj) \
-    OBJECT_CHECK(at91sam9260_debug, (obj), "at91sam9260_debug")
+    OBJECT_CHECK(AT91DebugState, (obj), "at91_debug")
 
-static int at91samdebug_irq_pending(at91sam9260_debug *s)
+static int at91samdebug_irq_pending(AT91DebugState *s)
 {
 	return 0;
 }
 
-static void at91sam9260debug_irq(at91sam9260_debug *s)
+static void at91_debug_irq(AT91DebugState *s)
 {
     if (at91samdebug_irq_pending(s)) 
         qemu_irq_raise(s->irq);
@@ -183,7 +183,7 @@ static void at91sam9260debug_irq(at91sam9260_debug *s)
         qemu_irq_lower(s->irq);
 }
 
-static void at91sam9260debug_set_parameters(at91sam9260_debug *s)
+static void at91_debug_set_parameters(AT91DebugState *s)
 {
     QEMUSerialSetParams ssp;
 	int speed, parity, data_bits, stop_bits;
@@ -204,20 +204,20 @@ static void at91sam9260debug_set_parameters(at91sam9260_debug *s)
                 s->channel, ssp.speed, ssp.parity, ssp.data_bits, ssp.stop_bits);
 }
 
-static int is_at91sam9260_recv_disable(at91sam9260_debug *s)
+static int is_at91sam9260_recv_disable(AT91DebugState *s)
 {
 	return s->regs.dbgu_sr & CR_RXDIS || !s->regs.dbgu_brgr;
 }
 
-static int is_at91sam9260_send_disable(at91sam9260_debug *s)
+static int is_at91sam9260_send_disable(AT91DebugState *s)
 {
 	return s->regs.dbgu_sr & CR_TXDIS ||!s->regs.dbgu_brgr;
 }
 
-static void at91sam9260debug_write(void *opaque, hwaddr offset,
+static void at91_debug_write(void *opaque, hwaddr offset,
                                uint64_t val, unsigned size)
 {
-    at91sam9260_debug *s = (at91sam9260_debug *)opaque;
+    AT91DebugState *s = (AT91DebugState *)opaque;
 
 	if (size > sizeof(uint32_t))
 		return ;
@@ -262,7 +262,7 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
 		break;
 	case DBGU_MR:
 		s->regs.dbgu_mr |= val;
-		at91sam9260debug_set_parameters(s);
+		at91_debug_set_parameters(s);
 		break;
 	case DBGU_IER:
 		s->regs.dbgu_ier |= val;
@@ -288,11 +288,11 @@ static void at91sam9260debug_write(void *opaque, hwaddr offset,
     }
 }
 
-static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
+static uint64_t at91_debug_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
 	uint64_t ret = 0;
-    at91sam9260_debug *s = (at91sam9260_debug *)opaque;
+    AT91DebugState *s = (AT91DebugState *)opaque;
 
 	if (size > sizeof(uint32_t))
 		return 0;
@@ -332,9 +332,9 @@ static uint64_t at91sam9260debug_read(void *opaque, hwaddr offset,
     return ret;
 }
 
-static const MemoryRegionOps at91sam9260debug_ops = {
-    .read = at91sam9260debug_read,
-    .write = at91sam9260debug_write,
+static const MemoryRegionOps at91_debug_ops = {
+    .read = at91_debug_read,
+    .write = at91_debug_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .max_access_size = 4,
@@ -342,9 +342,9 @@ static const MemoryRegionOps at91sam9260debug_ops = {
     },
 };
 
-static void at91sam9260debug_receive(void *opaque, const uint8_t *buf, int size)
+static void at91_debug_receive(void *opaque, const uint8_t *buf, int size)
 {
-    at91sam9260_debug *s = (at91sam9260_debug *)opaque;
+    AT91DebugState *s = (AT91DebugState *)opaque;
 
 	if (!s->regs.dbgu_rhr && !(s->regs.dbgu_sr & SR_RXRDY)) {
 		s->regs.dbgu_rhr = *((uint8_t*)buf);
@@ -353,117 +353,117 @@ static void at91sam9260debug_receive(void *opaque, const uint8_t *buf, int size)
 		if (s->regs.dbgu_sr & SR_RXRDY)
 			s->regs.dbgu_sr |= SR_OVER;
 	}
-    at91sam9260debug_irq(s);
+    at91_debug_irq(s);
 }
 
-static int at91sam9260debug_can_receive(void *opaque)
+static int at91_debug_can_receive(void *opaque)
 {
-	at91sam9260_debug *s = (at91sam9260_debug *)opaque;
+	AT91DebugState *s = (AT91DebugState *)opaque;
 	if (is_at91sam9260_recv_disable(s))
 		return 0;
 	return 1;
 }
 
 /**
- * at91sam9260debug_event:handle debug uart event
+ * at91_debug_event:handle debug uart event
  */
-static void at91sam9260debug_event(void *opaque, int event)
+static void at91_debug_event(void *opaque, int event)
 {
-	at91sam9260_debug *s = (at91sam9260_debug *)opaque;
+	AT91DebugState *s = (AT91DebugState *)opaque;
 
 	switch (event) {
 	case CHR_EVENT_BREAK:
 	case CHR_EVENT_FOCUS:
-		memset(&s->regs, 0, sizeof(at91sam9260_debug_regs));
+		memset(&s->regs, 0, sizeof(AT91DebugState_regs));
 		break;
 	default:
 		break;
 	}
 }
 
-static void at91sam9260debug_reset(DeviceState *dev)
+static void at91_debug_reset(DeviceState *dev)
 {
-    at91sam9260_debug *s = AT91SAM9260_DEBUG(dev);
+    AT91DebugState *s = AT91SAM9260_DEBUG(dev);
 	memset(&s->regs, 0, sizeof(s->regs));
 }
 
-static const VMStateDescription vmstate_at91sam9260debug_regs = {
-    .name = "at91sam9260_debug",
+static const VMStateDescription vmstate_at91_debug_regs = {
+    .name = "at91_debug",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(dbgu_cr, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_mr, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_ier, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_idr, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_imr, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_sr, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_rhr, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_thr, at91sam9260_debug_regs),
-        VMSTATE_UINT32(dbgu_brgr, at91sam9260_debug_regs),
+        VMSTATE_UINT32(dbgu_cr, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_mr, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_ier, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_idr, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_imr, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_sr, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_rhr, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_thr, AT91DebugState_regs),
+        VMSTATE_UINT32(dbgu_brgr, AT91DebugState_regs),
         VMSTATE_END_OF_LIST()
     }
 };
-static const VMStateDescription vmstate_at91sam9260debug = { .name = "at91sam9260_debug",
+static const VMStateDescription vmstate_at91_debug = { .name = "at91_debug",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT(regs, at91sam9260_debug, 1,
-                          vmstate_at91sam9260debug_regs, at91sam9260_debug_regs),
+        VMSTATE_STRUCT(regs, AT91DebugState, 1,
+                          vmstate_at91_debug_regs, AT91DebugState_regs),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void at91sam9260debug_realize(DeviceState *dev, Error **errp)
+static void at91_debug_realize(DeviceState *dev, Error **errp)
 {
-	at91sam9260_debug *s = AT91SAM9260_DEBUG(dev);
+	AT91DebugState *s = AT91SAM9260_DEBUG(dev);
 
     s->chr = qemu_char_get_next_serial();
 
     if (s->chr) {
-    	qemu_chr_add_handlers(s->chr, at91sam9260debug_can_receive,
-    			at91sam9260debug_receive, at91sam9260debug_event, s);
+    	qemu_chr_add_handlers(s->chr, at91_debug_can_receive,
+    			at91_debug_receive, at91_debug_event, s);
     }
 }
 
-static void at91sam9260debug_init(Object *obj)
+static void at91_debug_init(Object *obj)
 {
 	SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    at91sam9260_debug *s = AT91SAM9260_DEBUG(dev);
+    AT91DebugState *s = AT91SAM9260_DEBUG(dev);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &at91sam9260debug_ops, s,
-                          "at91sam9260_debug", AT91SAM9260_DEBUG_REGS_MEM_SIZE);
+    memory_region_init_io(&s->iomem, OBJECT(s), &at91_debug_ops, s,
+                          "at91_debug", AT91SAM9260_DEBUG_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
 	/*Todo:需要加入中断模式的支持*/
 
    // sysbus_init_irq(dev, &s->irq);
 
-	memset(&s->regs, 0, sizeof(at91sam9260_debug_regs));
+	memset(&s->regs, 0, sizeof(AT91DebugState_regs));
 }
 
-static void at91sam9260debug_class_init(ObjectClass *klass, void *data)
+static void at91_debug_class_init(ObjectClass *klass, void *data)
 {
 
     DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->reset = at91sam9260debug_reset;
-    dc->realize = at91sam9260debug_realize;
-    dc->vmsd = &vmstate_at91sam9260debug;
+    dc->reset = at91_debug_reset;
+    dc->realize = at91_debug_realize;
+    dc->vmsd = &vmstate_at91_debug;
 }
 
-static const TypeInfo at91sam9260debug_info = {
+static const TypeInfo at91_debug_info = {
     .name          = TYPE_AT91SAM9260_DEBUG,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(at91sam9260_debug),
-	.instance_init = at91sam9260debug_init,
-    .class_init    = at91sam9260debug_class_init,
+    .instance_size = sizeof(AT91DebugState),
+	.instance_init = at91_debug_init,
+    .class_init    = at91_debug_class_init,
 };
 
-static void at91sam9260debug_register(void)
+static void at91_debug_register(void)
 {
-    type_register_static(&at91sam9260debug_info);
+    type_register_static(&at91_debug_info);
 }
 
-type_init(at91sam9260debug_register)
+type_init(at91_debug_register)
