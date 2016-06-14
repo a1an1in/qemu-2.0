@@ -131,10 +131,11 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
     vmstate_register_ram_global(&s->rom);
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_mem,0x00100000, &s->rom);
+	/*create at91_pmc*/
     sysbus_create_varargs("at91_pmc", AT91_PMC_BASE, NULL);
-	/*create at19 debug unit*/
+	/*create at91 debug unit*/
     sysbus_create_varargs("at91_debug", AT91_DBGU_BASE, NULL);
-	/*create at19 watch dog*/
+	/*create at91 watch dog*/
     sysbus_create_varargs("wdt_at91", AT91_WDT_BASE, NULL);
 	/*create nand flash*/
    sysbus_create_varargs("at91_nand", AT91_NAND_BASE, NULL);

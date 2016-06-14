@@ -64,10 +64,19 @@
 #define MOSCEN	(1 << 0)
 
 /*pmc sr register field define*/
-#define SR_MOSCS (1 << 0)
+#define SR_MOSCS    (1 << 0)
+#define SR_LOCKA    (1 << 1)
+#define SR_LOCKB    (1 << 2)
+#define SR_MCKRDY   (1 << 3)
+#define SR_OSC_SEL  (1 << 7)
+#define SR_PCKRDY0  (1 << 8)
+#define SR_PCKRDY1  (1 << 9)
 
 /*pmc ier regiser field define*/
 #define IER_MOSCS  (1 << 0)
+/*pll charge pump current register*/
+#define ICPPLLA (1 << 0)
+#define ICPPLLB (1 << 16)
 
 typedef struct AT91PMCstate {
     SysBusDevice parent_obj;
@@ -75,78 +84,58 @@ typedef struct AT91PMCstate {
 	uint32_t regs[AT91_PMC_REGS_SIZE];
 } AT91PMCState;
 
+static uint64_t readl_reg(AT91PMCState *s, hwaddr offset)
+{
+	return s->regs[offset & AT91_PMC_MASK];
+}
+
+static void writel_reg(AT91PMCState *s, hwaddr offset, uint32_t val)
+{
+	s->regs[offset & AT91_PMC_MASK] |= val;
+}
+
 static uint64_t at91_pmc_read(void *opaque, hwaddr offset, unsigned size)
 {
-	uint64_t ret = 0;
+	AT91PMCState *s = (AT91PMCState *)opaque;
 
-	switch (offset & AT91_PMC_MASK) {
-	case PMC_SCSR:
-		break;
-	case PMC_PCSR:
-		break;
-	case CKGR_MCFR:
-		break;
-	case PMC_SR:
-		break;
-	case PMC_IMR:
-		break;
-	case CKGR_MOR:
-		break;
-	case CKGR_PLLAR:
-		break;
-	case CKGR_PLLBR:
-		break;
-	case PMC_MCKR:
-		break;
-	case PMC_PCK0:
-		break;
-	case PMC_PCK1:
-		break;
-	case PMC_PLLICPR:
-		break;
-	default:
-		ret = 0;
-		break;
-	}
-	
-	return ret;
+	assert(offset <= AT91PMC_REGS);
+	return readl_reg(s, offset);
+}
+
+static void at91_pmc_update(AT91PMCState *s)
+{
+	/*update status registers*/
+	writel_reg(s, PMC_SCSR, 
+			(readl_reg(s, PMC_SCER) & readl_reg(s, PMC_SCDR)));
+	writel_reg(s, PMC_PCSR, 
+			(readl_reg(s, PMC_PCER) & readl_reg(s, PMC_PCDR)));
+	writel_reg(s, PMC_IMR, 
+			(readl_reg(s, PMC_IER) & readl_reg(s, PMC_IDR)));
+	/*update some registers bits field*/
+	if (readl_reg(s, CKGR_PLLAR))
+		writel_reg(s, PMC_SR, SR_LOCKA);
+	if (readl_reg(s, CKGR_PLLBR))
+		writel_reg(s, PMC_SR, SR_LOCKB);
+	if (readl_reg(s, CKGR_MOR) & MOSCEN)
+		writel_reg(s, PMC_SR, SR_MOSCS);
+	if (readl_reg(s, PMC_PCK0))
+		writel_reg(s, PMC_SR, SR_PCKRDY0);
+	if (readl_reg(s, PMC_PCK1))
+		writel_reg(s, PMC_SR, SR_PCKRDY1);
+	if (readl_reg(s, PMC_MCKR))
+		writel_reg(s, PMC_SR, SR_MCKRDY);
+
+	writel_reg(s, PMC_PLLICPR, ICPPLLA|ICPPLLB);
 }
 
 static void at91_pmc_write(void *opaque, hwaddr offset, uint64_t val, 
 		unsigned size)
 {
+	AT91PMCState *s = (AT91PMCState *)opaque;
 
-	switch (offset & AT91_PMC_MASK) {
-	case PMC_SCER:
-		break;
-	case PMC_SCDR:
-		break;
-	case PMC_PCER:
-		break;
-	case PMC_PCDR:
-		break;
-	case PMC_IER:
-		break;
-	case PMC_IDR:
-		break;
-	case CKGR_MOR:
-		break;
-	case CKGR_PLLAR:
-		break;
-	case CKGR_PLLBR:
-		break;
-	case PMC_MCKR:
-		break;
-	case PMC_PCK0:
-		break;
-	case PMC_PCK1:
-		break;
-	case PMC_PLLICPR:
-		break;
-	default:
-		break;
-	}
-
+	assert(offset <= AT91PMC_REGS);
+	writel_reg(s, offset, val);
+	at91_pmc_update(s);
 }
 
 static const MemoryRegionOps at91pmc_ops = {
@@ -159,12 +148,6 @@ static const MemoryRegionOps at91pmc_ops = {
     },
 };
 
-#if 0
-static void at91_pmc_realize(DeviceState *dev, Error **errp)
-{
-    //AT91PMCState *s = AT91_PMC(dev);
-}
-#endif
 
 static void at91_pmc_init(Object *obj)
 {
@@ -203,7 +186,6 @@ static void at91_pmc_class_init(ObjectClass *klass, void *data)
 
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->reset = at91_pmc_reset;
-    //dc->realize = at91_pmc_realize;
     dc->vmsd = &vmstate_at91_pmc;
 }
 
