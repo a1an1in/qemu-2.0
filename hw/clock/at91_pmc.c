@@ -36,7 +36,7 @@
 #define AT91_PMC(obj) OBJECT_CHECK(AT91PMCState, (obj), TYPE_AT91_PMC)
 
 /*watch dog register offset define*/
-#define AT91PMC_REGS	3
+#define AT91PMC_REGS	0xFC
 #define AT91_PMC_REGS_SIZE (AT91PMC_REGS * sizeof(uint32_t))
 
 #define WDT_KEY 0xA5
@@ -83,10 +83,12 @@ static const MemoryRegionOps at91wdt_ops = {
     },
 };
 
+#if 0
 static void at91_pmc_realize(DeviceState *dev, Error **errp)
 {
     //AT91PMCState *s = AT91_PMC(dev);
 }
+#endif
 
 static void at91_pmc_init(Object *obj)
 {
@@ -125,7 +127,7 @@ static void at91_pmc_class_init(ObjectClass *klass, void *data)
 
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->reset = at91_pmc_reset;
-    dc->realize = at91_pmc_realize;
+    //dc->realize = at91_pmc_realize;
     dc->vmsd = &vmstate_at91_pmc;
 }
 

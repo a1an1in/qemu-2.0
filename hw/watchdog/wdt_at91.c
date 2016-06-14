@@ -165,13 +165,6 @@ static const MemoryRegionOps at91wdt_ops = {
     },
 };
 
-static void wdt_at91_realize(DeviceState *dev, Error **errp)
-{
-    AT91WDTState *s = WDT_AT91(dev);
-    at91_debug("watchdog init\n");
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, at91_timer_expired, s);
-}
-
 static void wdt_at91_init(Object *obj)
 {
 	SysBusDevice *dev = SYS_BUS_DEVICE(obj);
@@ -196,7 +189,7 @@ static void wdt_at91_reset(DeviceState *dev)
 	memset(&s->regs, 0, WDT_AT91_REGS_SIZE);
 	writel_reg(s, WDT_MR, 0xFFF);
     at91_debug("watchdog reset\n");
-    timer_del(s->timer);
+   // timer_del(s->timer);
 }
 
 static WatchdogTimerModel model = {
@@ -220,7 +213,7 @@ static void wdt_at91_class_init(ObjectClass *klass, void *data)
 
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->reset = wdt_at91_reset;
-    dc->realize = wdt_at91_realize;
+   // dc->realize = wdt_at91_realize;
     dc->vmsd = &vmstate_wdt_at91;
 }
 
