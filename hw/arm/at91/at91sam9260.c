@@ -131,6 +131,8 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
     vmstate_register_ram_global(&s->rom);
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_mem,0x00100000, &s->rom);
+	/*create at91_aic*/
+    sysbus_create_varargs("at91_aic", AT91_AIC_BASE, NULL);
 	/*create at91_pmc*/
     sysbus_create_varargs("at91_pmc", AT91_PMC_BASE, NULL);
 	/*create at91 debug unit*/

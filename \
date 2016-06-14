@@ -79,7 +79,7 @@ typedef struct AT91AICState {
     qemu_irq fiq;
 	uint8_t stack_irq[AT91AIC_NUM_PRIO];
 	uint8_t stack_pri[AT91AIC_NUM_PRIO];
-	int32_t stack_pos;
+	uint32_t stack_pos;
 	/*aic control registers*/
 	AT91AICRegs *regs;
 } AT91AICState;
@@ -124,7 +124,6 @@ static void at91aic_update(AT91AICState *s)
 		s->regs->cisr = !!(pending & fiq_mask);
 		if (pending & ~fiq_mask) {
 			uint8_t highest;
-			at91aic_highest(s, &highest);
 			if (s->stack_pos < 0 || 
 					s->stack_pri[s->stack_pos] < highest) 
 				s->regs->cisr |= 2;
@@ -146,21 +145,31 @@ static void at91aic_set_irq(void *opaque, int irq, int level)
 	at91aic_update(s);
 }
 
-
-static void at91_aic_irq_enter(AT91AICState *s, uint8_t irq, uint8_t priority)
+static int get_irqnum(uint32 reg)
 {
-    if (s->stack_pos < 7 && irq != 0) {
-        s->stack_pos++;
-        s->stack_irq[s->stack_pos] = irq;
-        s->stack_pri[s->stack_pos] = priority;
+	int irq = -1;
 
-        if (AIC_IS_EDGE_TRIGGERED(s, irq)) {
-            s->regs->ipr &= ~(1 << irq);
-            at91aic_update(s);
-        }
-    }
+	while (reg) {
+		if (reg & 1) 
+			irq++;
+		reg >>= 1;
+	}
+	return irq;
 }
 
+static void auto_clearirq(AT91AICState *s)
+{
+	uint32_t ipr = s->regs->ipr;
+	int irq = get_irqnum(ipr);
+	uint32_t ffsr = s->regs->ffsr;
+
+	if (irq < 0 || irq > 32)
+		return ;
+
+	if (ffsr & (1 << irq))
+		return ;
+	s->regs->ipr &= ~irq;
+}
 
 static uint64_t at91aic_read(void *opaque, hwaddr offset,
                            unsigned size)
@@ -168,8 +177,6 @@ static uint64_t at91aic_read(void *opaque, hwaddr offset,
 	int off = 0;
 	uint64_t ret = 0;
     AT91AICState *s = (AT91AICState *)opaque;
-    uint8_t current_irq;
-    uint8_t current_pri;
 
 	off = offset & AT91AIC_REGMASK; 
 	if ((off >= AT91AIC_SMRSTART) && (off <= AT91AIC_SMREND)) {
@@ -180,28 +187,15 @@ static uint64_t at91aic_read(void *opaque, hwaddr offset,
 		ret = s->regs->svr[off];
 	}else switch (off) {
 		case AT91AIC_IVR:
-			 current_irq = at91aic_highest(s, &current_pri);
-			 if (!(s->regs->dcr & DCR_PROT))
-				 at91_aic_irq_enter(s, current_irq, current_pri);
-			ret =  current_irq == 0 ? s->regs->spu : s->regs->svr[current_irq];
+			ret = s->regs->ivr;	
+			auto_clearirq(s);
 			break;
 		case AT91AIC_FVR:
-			if (s->regs->ipr & 1) {
-				s->regs->ipr &= ~1;
-			    at91aic_update(s);
-			    ret = s->regs->svr[0];
-			} else if (s->regs->ipr & s->regs->ffsr)
-			    ret = s->regs->svr[0];
-			else {
-				ret = s->regs->spu;
-				s->regs->ipr &= ~1;
-			}
+			ret = s->regs->fvr;
+			s->regs->ipr &= ~1;
 			break;
 		case AT91AIC_ISR:
-			if (s->stack_pos < 0)
-				ret = 0;
-			else
-				ret = s->stack_irq[s->stack_pos];
+			ret = s->regs->isr;
 			break;
 		case AT91AIC_IPR:
 			ret = s->regs->ipr;
@@ -225,15 +219,43 @@ static uint64_t at91aic_read(void *opaque, hwaddr offset,
 	return ret;
 }
 
+static void at91aic_cmd_setirq(AT91AICState *s)
+{
+	uint32_t type, clrcmd = s->regs->iccr;
+	int32_t irq = get_irqnum(clrcmd);
+
+	if (irq < 0 || irq > 32)
+		return ;
+
+	type = ((s->regs->smr[irq] & 0x60) >> 5) & 0x3;
+	/*only set edge sensitive can set pending irq*/
+	if (type == 1 || type == 3) 
+		s->regs->ipr &= ~irq;
+}
+
+static void at91aic_cmd_clearirq(AT91AICState *s)
+{
+	uint32_t clrcmd = s->regs->iccr;
+	uint32_t type, ipr = s->regs->ipr;
+	int32_t irq = get_irqnum(ipr);
+
+	if (irq < 0 || irq > 32)
+		return ;
+
+	type = ((s->regs->smr[irq] & 0x60) >> 5) & 0x3;
+	/*only set edge sensitive can clear pending irq*/
+	if (type == 1 || type == 3) {
+		if (clrcmd & (1 << irq))
+			s->regs->ipr &= ~irq;
+	}
+}
 
 static void at91aic_write(void *opaque, hwaddr offset,
                         uint64_t val, unsigned size)
 {
 	int off = 0;
-	uint32_t irq;
-	uint8_t current_irq;
-	uint8_t current_pri;
     AT91AICState *s = (AT91AICState *)opaque;
+	AT91AICStack *sp1, *sp2;
 
 	off = offset & AT91AIC_REGMASK; 
 	if ((off >= AT91AIC_SMRSTART) && (off <= AT91AIC_SMREND)) {
@@ -243,11 +265,6 @@ static void at91aic_write(void *opaque, hwaddr offset,
 		off -= AT91AIC_SVRSTART;
 		s->regs->svr[off] = val;
 	}else switch (off) {
-    	case AT91AIC_IVR:
-    		if (s->regs->dcr & DCR_PROT) {
-    			current_irq = at91aic_highest(s, &current_pri);
-    			at91_aic_irq_enter(s, current_irq, current_pri);
-    		}
 		case AT91AIC_IECR:
 			s->regs->iecr |= val;
 			s->regs->imr &= ~val;
@@ -258,25 +275,21 @@ static void at91aic_write(void *opaque, hwaddr offset,
 			break;
 		case AT91AIC_ICCR:
 			s->regs->iccr |= val;
-			 for (irq = 0; irq < 32; irq++) {
-				 if (!AIC_IS_EDGE_TRIGGERED(s, irq))
-					 val &= ~(1 << irq);
-			        }
-			 s->regs->ipr &= val;
-
+			at91aic_cmd_clearirq(s);
 			break;
 		case AT91AIC_ISCR:
 			s->regs->iscr |= val;
-			for (irq = 0; irq < 32; irq++) {
-				 if (!AIC_IS_EDGE_TRIGGERED(s, irq))
-					 val &= ~(1 << irq);
-			        }
-			s->regs->ipr |= val;
+			at91aic_cmd_setirq(s);
 			break;
-		case AT91AIC_EOICR:
+		case AT91AIC_EOICR: {
+			int pending = -1;
 			s->regs->eoicr |= val;
-			if (s->stack_pos >= 0)
-				s->stack_pos--;
+			sp1 = pop_irq(s);
+			sp2 = pop_irq(s);
+			pending = at91aic_updatestack(s, sp2->irq, sp2->level, sp1);
+			at91aic_updateirq(s, pending);
+			at91aic_update(s, 0);
+		}
 			break;
 		case AT91AIC_SPU:
 			s->regs->spu = val;
@@ -295,7 +308,6 @@ static void at91aic_write(void *opaque, hwaddr offset,
 		default:
 			break;
 	} 
-	 at91aic_update(s);
 
 }
 
@@ -322,7 +334,6 @@ static int at91aic_init(SysBusDevice *sbd)
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->fiq);
 	s->regs = g_malloc(sizeof(AT91AICRegs));
-	s->stack_pos = -1;
     return 0;
 }
 
