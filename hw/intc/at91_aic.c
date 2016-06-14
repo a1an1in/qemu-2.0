@@ -151,7 +151,7 @@ static void at91_aic_irq_enter(AT91AICState *s, uint8_t irq, uint8_t priority)
 {
     if (s->stack_pos < 7 && irq != 0) {
         s->stack_pos++;
-        s->stack_irq[s->stack_pos] = irq;
+		s->regs->isr = irq;
         s->stack_pri[s->stack_pos] = priority;
 
         if (AIC_IS_EDGE_TRIGGERED(s, irq)) {
@@ -198,10 +198,7 @@ static uint64_t at91aic_read(void *opaque, hwaddr offset,
 			}
 			break;
 		case AT91AIC_ISR:
-			if (s->stack_pos < 0)
-				ret = 0;
-			else
-				ret = s->stack_irq[s->stack_pos];
+			ret = s->regs->isr;
 			break;
 		case AT91AIC_IPR:
 			ret = s->regs->ipr;
