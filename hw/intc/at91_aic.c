@@ -77,7 +77,6 @@ typedef struct AT91AICState {
     uint32_t priority;
     qemu_irq irq;
     qemu_irq fiq;
-	uint8_t stack_irq[AT91AIC_NUM_PRIO];
 	uint8_t stack_pri[AT91AIC_NUM_PRIO];
 	int32_t stack_pos;
 	/*aic control registers*/
