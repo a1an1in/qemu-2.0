@@ -56,19 +56,12 @@ typedef struct at91sam9260_state {
 
 static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long ram_size)
 {
-#if 0
-    DeviceState *dev;
-    DeviceState *pit;
-    DeviceState *pmc;
-    DeviceState *spi;
-#endif
     ObjectClass *cpu;
     Error *err = NULL;
-#if 0
+    DeviceState *dev;
     qemu_irq pic[32];
     qemu_irq pic1[32];
 	int i;
-#endif
 
 	at91sam9260_state *s = g_new(at91sam9260_state, 1); 
 	cpu = cpu_class_by_name(TYPE_ARM_CPU, "arm926");
@@ -80,9 +73,8 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
 		error_report("%s", error_get_pretty(err));
 	    exit(1);
 	}
-#if 0
 	/*at91 aic*/
-    dev = sysbus_create_varargs("at91.aic", AT91_AIC_BASE,
+    dev = sysbus_create_varargs("at91_aic", AT91_AIC_BASE,
                                 qdev_get_gpio_in(DEVICE(cpuobj), ARM_CPU_IRQ),
                                 qdev_get_gpio_in(DEVICE(cpuobj), ARM_CPU_FIQ),
                                 NULL);
@@ -95,24 +87,6 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
         pic1[i] = qdev_get_gpio_in(dev, i);
     }
 
-    sysbus_create_simple("at91.dbgu", AT91_DBGU_BASE, pic1[0]);
-    pmc = sysbus_create_simple("at91.pmc", AT91_PMC_BASE, pic1[1]);
-    qdev_prop_set_uint32(pmc, "mo_freq", 16000000);
-    pit = sysbus_create_simple("at91.pit", AT91_PITC_BASE, pic1[3]);
-    sysbus_create_varargs("at91.tc", AT91_TC012_BASE, pic[19], pic[19], pic[19], NULL);
-    qdev_prop_set_uint32(pit, "pic", 0);
-    spi = sysbus_create_simple("at91,spi", AT91_SPI0_BASE, pic[14]);
-    qdev_prop_set_uint32(spi, "spi", 0);
-    spi = sysbus_create_simple("at91.spi", AT91_SPI0_BASE, pic[14]);
-	sysbus_create_varargs("at91.matrix", AT91_BUS_MATRIX_BASE, NULL);
-    sysbus_create_simple("at91.pio", AT91_PIOA_BASE, pic[2]);
-    sysbus_create_simple("at91.pio", AT91_PIOB_BASE, pic[3]);
-    sysbus_create_simple("at91,pio", AT91_PIOC_BASE, pic[4]);
-    sysbus_create_varargs("at91.rstc", AT91_RSTC_BASE, NULL);
-
-    sysbus_create_simple("at91.emac", AT91_EMAC_BASE, pic[21]);
-    sysbus_create_simple("at91.lcdc", AT91_LCDC_BASE, pic[26]);
-#endif
 
 	/*internal sram memory*/
     memory_region_init_ram(&s->internal_sram, NULL, "at91.isram",80*1024);
@@ -131,10 +105,8 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
     vmstate_register_ram_global(&s->rom);
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_mem,0x00100000, &s->rom);
-	/*create at91_aic*/
-    sysbus_create_varargs("at91_aic", AT91_AIC_BASE, NULL);
 	/*create at91_pmc*/
-    sysbus_create_varargs("at91_pmc", AT91_PMC_BASE, NULL);
+    sysbus_create_varargs("at91_pmc", AT91_PMC_BASE, pic1[0]);
 	/*create at91 debug unit*/
     sysbus_create_varargs("at91_debug", AT91_DBGU_BASE, NULL);
 	/*create at91 watch dog*/
