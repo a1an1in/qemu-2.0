@@ -45,16 +45,16 @@ static struct arm_boot_info at91sam9260_binfo = {
     .nb_cpus          = 1,
 };
 
-typedef struct at91sam9260_state {
+typedef struct AT91SAMState {
 	ARMCPU *cpu;
 	MemoryRegion internal_sram;
 	qemu_irq *irq_table;
 	MemoryRegion boot_rom;
 	MemoryRegion sdramc;
 	MemoryRegion rom;
-}at91sam9260_state;
+}AT91SAMState;
 
-static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long ram_size)
+static AT91SAMState *at91_mem_init(MemoryRegion *system_mem, unsigned long ram_size)
 {
     ObjectClass *cpu;
     Error *err = NULL;
@@ -63,7 +63,7 @@ static at91sam9260_state *at91_mem_init(MemoryRegion *system_mem, unsigned long 
     qemu_irq pic1[32];
 	int i;
 
-	at91sam9260_state *s = g_new(at91sam9260_state, 1); 
+	AT91SAMState *s = g_new(AT91SAMState, 1); 
 	cpu = cpu_class_by_name(TYPE_ARM_CPU, "arm926");
 	assert(cpu);
 	Object *cpuobj = object_new(object_class_get_name(cpu));
