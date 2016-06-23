@@ -95,9 +95,8 @@ static S3C24xxState *s3c2440_mem_init(MemoryRegion *system_mem, unsigned long ra
     memory_region_set_readonly(&s->rom, true);
     memory_region_add_subregion(system_mem,SROM_nGCS0, &s->rom);
 	/*create nand flash*/
-   sysbus_create_varargs("s3c_nand", S3C2440_NFCONF, pic1[0]);
+    sysbus_create_varargs("s3c_nand", S3C2440_NFCONF, pic1[0]);
 	return s;
-	return NULL;
 }
 
 static void s3c2440_init(QEMUMachineInitArgs *args)
